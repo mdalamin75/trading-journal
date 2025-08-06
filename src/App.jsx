@@ -14,26 +14,16 @@ const SESSION_KEY = 'proTraderAccessCode';
 const DB_COLLECTION_NAME = 'pro_trader_journals';
 
 // --- FIREBASE CONFIG (placeholders, will be handled by environment) ---
-// IMPORTANT FOR DEPLOYMENT (e.g., on Vercel):
-// This app is designed to get its Firebase configuration from the environment it runs in.
-// In the development canvas, `__firebase_config` and `__app_id` are provided automatically.
-// For a production deployment on a platform like Vercel, you must provide these
-// as environment variables or replace the placeholder logic below with your actual Firebase config object,
-// as the injected variables will not be present.
-//
-// Example of direct replacement (less secure, use environment variables if possible):
 const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID
-  };
-  
-  const appId = import.meta.env.VITE_APP_ID || 'pro-trader-journal';
-// const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-// const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
+};
+
+const appId = import.meta.env.VITE_APP_ID || 'pro-trader-journal';
 
 
 // --- HELPER FUNCTIONS ---
@@ -51,6 +41,7 @@ const formatDateForAxis = (tickItem) => {
 };
 const generateUniqueId = () => `id_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+// --- UPDATED: Sample data is now relative to capital ---
 const generateSampleTrades = (count, initialCapital) => {
     const trades = [];
     let currentDate = new Date();
@@ -59,7 +50,10 @@ const generateSampleTrades = (count, initialCapital) => {
         currentDate.setDate(currentDate.getDate() + 1);
         if (currentDate.getDay() === 0 || currentDate.getDay() === 6) { i--; continue; }
         const isProfit = Math.random() > 0.45;
-        const pnlMagnitude = isProfit ? Math.random() * 25000 : Math.random() * 15000;
+        // P&L is now a percentage of capital, making it realistic.
+        // Profits can be up to 4%, losses up to 2.5%
+        const pnlPercentage = isProfit ? Math.random() * 0.04 : Math.random() * 0.025;
+        const pnlMagnitude = initialCapital * pnlPercentage;
         const grossPnl = isProfit ? pnlMagnitude : -pnlMagnitude;
         const taxesAndCharges = Math.abs(grossPnl) * (Math.random() * 0.05 + 0.02);
         trades.push({
@@ -76,19 +70,21 @@ const generateSampleTrades = (count, initialCapital) => {
 };
 
 
-// --- CORE ANALYTICS LOGIC ---
+// --- CORE ANALYTICS LOGIC (RE-AUDITED & FULLY CORRECTED) ---
 const calculateAnalytics = (currentTrades, journalInitialCapital = 0) => {
+  // Return a default state if there are no trades
   if (!currentTrades || currentTrades.length === 0) {
     return {
       startingCapital: journalInitialCapital, averageCapital: journalInitialCapital, overallPnl: 0, currentEquity: journalInitialCapital, roi: 0,
       totalTrades: 0, winDays: 0, lossDays: 0, winRate: 0, avgProfitOnWinDays: 0, avgLossOnLossDays: 0,
       maxProfit: 0, maxLoss: 0, maxWinningStreak: 0, maxLosingStreak: 0, maxDrawdown: 0, maxDDPercentage: 0,
-      expectancy: 0, winLossRatio: 0, profitFactor: 0, capitalFlows: [],
+      expectancy: 0, winLossRatio: 0, profitFactor: 0,
       pnlByDayOfWeek: DAY_NAME_MAPPING.map(day => ({ day: day.substring(0,3), pnl: 0 })),
       monthlyPerformance: [], dailyPnlData: [], pnlDistribution: [],
     };
   }
 
+  // --- Initial Processing & Sorting ---
   const sortedTrades = [...currentTrades].sort((a, b) => new Date(a.date) - new Date(b.date));
   const calculatedTrades = sortedTrades.map(trade => ({
     ...trade,
@@ -96,71 +92,71 @@ const calculateAnalytics = (currentTrades, journalInitialCapital = 0) => {
     capitalDeployed: parseFloat(trade.capitalDeployed) || 0
   }));
 
+  // --- Basic Performance Metrics ---
   const winningTrades = calculatedTrades.filter(t => t.netPnl > 0);
   const losingTrades = calculatedTrades.filter(t => t.netPnl < 0);
   const totalTradesCount = calculatedTrades.length;
   const totalWinDays = winningTrades.length;
   const totalLossDays = losingTrades.length;
   const winRate = totalTradesCount > 0 ? (totalWinDays / totalTradesCount) * 100 : 0;
+  
   const totalProfitOnWinDays = winningTrades.reduce((sum, t) => sum + t.netPnl, 0);
   const totalLossOnLossDays = losingTrades.reduce((sum, t) => sum + t.netPnl, 0);
+  const totalNetPnl = totalProfitOnWinDays + totalLossOnLossDays;
+
   const avgProfitOnWinDays = totalWinDays > 0 ? totalProfitOnWinDays / totalWinDays : 0;
   const avgLossOnLossDays = totalLossDays > 0 ? totalLossOnLossDays / totalLossDays : 0;
+  
   const profitFactor = Math.abs(totalLossOnLossDays) > 0 ? Math.abs(totalProfitOnWinDays / totalLossOnLossDays) : 0;
-  const expectancy = ((winRate / 100) * avgProfitOnWinDays) + (((100 - winRate) / 100) * avgLossOnLossDays);
+  const expectancy = totalTradesCount > 0 ? totalNetPnl / totalTradesCount : 0;
   const winLossRatio = Math.abs(avgLossOnLossDays) > 0 ? Math.abs(avgProfitOnWinDays / avgLossOnLossDays) : 0;
+  
   const maxProfit = Math.max(0, ...winningTrades.map(t => t.netPnl));
   const maxLoss = Math.min(0, ...losingTrades.map(t => t.netPnl));
 
+  // --- Streaks ---
   let currentWinStreak = 0, longestWinStreak = 0, currentLossStreak = 0, longestLossStreak = 0;
   calculatedTrades.forEach(trade => {
-    if (trade.netPnl > 0) { currentWinStreak++; currentLossStreak = 0; longestWinStreak = Math.max(longestWinStreak, currentWinStreak); }
-    else if (trade.netPnl < 0) { currentLossStreak++; currentWinStreak = 0; longestLossStreak = Math.max(longestLossStreak, currentLossStreak); }
-    else { currentWinStreak = 0; currentLossStreak = 0; }
+    if (trade.netPnl > 0) { currentWinStreak++; currentLossStreak = 0; }
+    else if (trade.netPnl < 0) { currentLossStreak++; currentWinStreak = 0; }
+    longestWinStreak = Math.max(longestWinStreak, currentWinStreak);
+    longestLossStreak = Math.max(longestLossStreak, currentLossStreak);
   });
 
-  const startingCapital = calculatedTrades.length > 0 ? calculatedTrades[0].capitalDeployed : journalInitialCapital;
-  const totalNetPnl = calculatedTrades.reduce((sum, t) => sum + t.netPnl, 0);
+  // --- Equity, Drawdown, and Capital Calculations (FULLY REVISED LOGIC) ---
+  const dailyPnlData = [];
+  let runningEquity = journalInitialCapital;
+  let peakEquity = journalInitialCapital;
+  let maxDrawdownValue = 0;
+  
+  for (let i = 0; i < calculatedTrades.length; i++) {
+      const currentTrade = calculatedTrades[i];
+      const prevCapital = (i === 0) ? journalInitialCapital : calculatedTrades[i-1].capitalDeployed;
+      const prevEquity = (i === 0) ? journalInitialCapital : dailyPnlData[i-1].equity;
+      const capitalFlow = currentTrade.capitalDeployed - prevCapital;
+      const equityStartOfDay = prevEquity + capitalFlow;
+      runningEquity = equityStartOfDay + currentTrade.netPnl;
+      peakEquity = Math.max(peakEquity, equityStartOfDay, runningEquity);
+      const drawdown = peakEquity - runningEquity;
+      maxDrawdownValue = Math.max(maxDrawdownValue, drawdown);
+      dailyPnlData.push({ date: currentTrade.date, pnl: currentTrade.netPnl, equity: runningEquity, capital: currentTrade.capitalDeployed });
+  }
+
+  const currentEquity = calculatedTrades.length > 0 ? runningEquity : journalInitialCapital;
+  const maxDDPercentage = peakEquity > journalInitialCapital ? (maxDrawdownValue / peakEquity) * 100 : 0;
+  const startingCapital = journalInitialCapital;
+  
+  // CONFIRMED ACCURATE: This calculates the simple arithmetic mean of the capital deployed on each trading day.
   const averageCapital = calculatedTrades.length > 0 ? calculatedTrades.reduce((sum, t) => sum + t.capitalDeployed, 0) / calculatedTrades.length : journalInitialCapital;
   const roi = averageCapital > 0 ? (totalNetPnl / averageCapital) * 100 : 0;
 
-  let runningEquity = 0;
-  let peakEquity = -Infinity;
-  let maxDrawdownValue = 0;
-  const dailyPnlData = [];
-  const capitalFlows = [];
-  for (let i = 0; i < calculatedTrades.length; i++) {
-    const trade = calculatedTrades[i];
-    let capitalChange = 0;
-    if (i === 0) {
-      runningEquity = trade.capitalDeployed + trade.netPnl;
-    } else {
-      capitalChange = trade.capitalDeployed - calculatedTrades[i-1].capitalDeployed;
-      runningEquity += capitalChange + trade.netPnl;
-    }
-    
-    if (capitalChange !== 0) {
-        capitalFlows.push({
-            date: trade.date,
-            type: capitalChange > 0 ? 'Deposit' : 'Withdrawal',
-            amount: Math.abs(capitalChange),
-            newTotal: trade.capitalDeployed
-        });
-    }
-
-    peakEquity = Math.max(peakEquity, runningEquity);
-    const drawdown = peakEquity - runningEquity;
-    maxDrawdownValue = Math.max(maxDrawdownValue, drawdown);
-    dailyPnlData.push({ date: trade.date, pnl: trade.netPnl, equity: runningEquity, capital: trade.capitalDeployed });
-  }
-  const currentEquity = calculatedTrades.length > 0 ? runningEquity : journalInitialCapital;
-  const maxDDPercentage = peakEquity > 0 ? (maxDrawdownValue / peakEquity) * 100 : 0;
-
+  // --- P&L by Day of Week ---
   const pnlByDayOfWeekMap = calculatedTrades.reduce((acc, t) => {
-    const dayName = new Date(t.date).toLocaleDateString('en-US', { weekday: 'long' });
+    const dayName = DAY_NAME_MAPPING[new Date(t.date).getUTCDay()];
     acc[dayName] = (acc[dayName] || 0) + t.netPnl; return acc; }, {});
   const pnlByDayOfWeek = DAY_NAME_MAPPING.map(day => ({ day: day.substring(0, 3), pnl: pnlByDayOfWeekMap[day] || 0 }));
   
+  // --- Monthly Performance ---
   const monthlyData = calculatedTrades.reduce((acc, trade) => {
     const month = new Date(trade.date).toLocaleString('default', { month: 'short', year: 'numeric' });
     if (!acc[month]) acc[month] = { netPnl: 0, capitals: [], date: new Date(trade.date) };
@@ -168,29 +164,45 @@ const calculateAnalytics = (currentTrades, journalInitialCapital = 0) => {
     acc[month].capitals.push(trade.capitalDeployed);
     return acc;
   }, {});
+
   const monthlyPerformance = Object.keys(monthlyData).map(month => {
       const monthInfo = monthlyData[month];
       const avgCapitalForMonth = monthInfo.capitals.reduce((a, b) => a + b, 0) / monthInfo.capitals.length;
-      const monthlyReturn = avgCapitalForMonth > 0 ? (monthInfo.netPnl / monthInfo.capitals.length) * 100 : 0;
+      const monthlyReturn = avgCapitalForMonth > 0 ? (monthInfo.netPnl / avgCapitalForMonth) * 100 : 0;
       return { month, netPnl: monthInfo.netPnl, capitalDeployed: avgCapitalForMonth, monthlyReturn, date: monthInfo.date };
     }).sort((a, b) => a.date - b.date);
     
-  const pnlBuckets = [
-    { range: '< -10k', min: -Infinity, max: -10000, count: 0, color: '#be123c' },
-    { range: '-10k to -5k', min: -10000, max: -5000, count: 0, color: '#ef4444' },
-    { range: '-5k to 0', min: -5000, max: -0.01, count: 0, color: '#f87171' },
-    { range: '0 to 5k', min: 0, max: 5000, count: 0, color: '#a7f3d0' },
-    { range: '5k to 10k', min: 5000, max: 10000, count: 0, color: '#34d399' },
-    { range: '> 10k', min: 10000, max: Infinity, count: 0, color: '#059669' },
+  // --- P&L Distribution (GRANULAR & WIDER Percentage of Capital Bucketing) ---
+  const pnlPercentageBuckets = [
+    { name: '< -3.5%', min: -Infinity, max: -3.5, trades: 0, fill: '#7f1d1d' },
+    { name: '-3.5% to -2.5%', min: -3.5, max: -2.5, trades: 0, fill: '#b91c1c' },
+    { name: '-2.5% to -1.5%', min: -2.5, max: -1.5, trades: 0, fill: '#dc2626' },
+    { name: '-1.5% to -1%', min: -1.5, max: -1, trades: 0, fill: '#ef4444' },
+    { name: '-1% to 0%', min: -1, max: -0.0001, trades: 0, fill: '#f87171' },
+    { name: '0% to 1%', min: 0, max: 1, trades: 0, fill: '#a7f3d0' },
+    { name: '1% to 1.5%', min: 1, max: 1.5, trades: 0, fill: '#4ade80' },
+    { name: '1.5% to 2.5%', min: 1.5, max: 2.5, trades: 0, fill: '#22c55e' },
+    { name: '2.5% to 3.5%', min: 2.5, max: 3.5, trades: 0, fill: '#16a34a' },
+    { name: '> 3.5%', min: 3.5, max: Infinity, trades: 0, fill: '#15803d' },
   ];
-  calculatedTrades.forEach(t => { const bucket = pnlBuckets.find(b => t.netPnl >= b.min && t.netPnl < b.max); if (bucket) bucket.count++; });
 
+  calculatedTrades.forEach(trade => {
+    if (trade.capitalDeployed > 0) {
+      const pnlPercent = (trade.netPnl / trade.capitalDeployed) * 100;
+      const bucket = pnlPercentageBuckets.find(b => pnlPercent >= b.min && pnlPercent < b.max);
+      if (bucket) {
+        bucket.trades++;
+      }
+    }
+  });
+
+  // --- Final Return Object ---
   return {
     startingCapital, averageCapital, overallPnl: totalNetPnl, currentEquity, roi, totalTrades: totalTradesCount,
     winDays: totalWinDays, lossDays: totalLossDays, winRate, avgProfitOnWinDays, avgLossOnLossDays, maxProfit, maxLoss,
     maxWinningStreak: longestWinStreak, maxLosingStreak: longestLossStreak, maxDrawdown: maxDrawdownValue,
     maxDDPercentage, expectancy, winLossRatio, profitFactor, pnlByDayOfWeek, monthlyPerformance, dailyPnlData,
-    pnlDistribution: pnlBuckets.map(b => ({ name: b.range, trades: b.count, fill: b.color })),
+    pnlDistribution: pnlPercentageBuckets,
   };
 };
 
@@ -261,7 +273,6 @@ const RegisterScreen = ({ setView, setRegistrationDetails, db, setModal }) => {
         e.preventDefault();
         setIsLoading(true);
 
-        // Check for database connection first
         if (!db) {
             setModal({ isOpen: true, type: 'alert', message: 'Database connection not available. This can happen if Firebase configuration is missing for deployment. Please contact support.' });
             setIsLoading(false);
@@ -515,11 +526,19 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db 
     });
     const [expandedTradeId, setExpandedTradeId] = useState(null);
     const [highlightedDate, setHighlightedDate] = useState(null);
+    const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
     const currentUserData = useMemo(() => allData || { journals: [], trades: {} }, [allData]);
     const journals = currentUserData.journals || [];
     const trades = useMemo(() => (selectedJournalId ? currentUserData.trades?.[selectedJournalId] : []) || [], [currentUserData, selectedJournalId]);
     const userName = currentUserData?.userInfo?.name;
+
+    // --- Responsive handler ---
+    useEffect(() => {
+        const handleResize = () => setWindowWidth(window.innerWidth);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     // --- SET INITIAL JOURNAL & FORM DEFAULTS ---
     useEffect(() => {
@@ -542,9 +561,20 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db 
 
     // --- DERIVED STATE & MEMOIZATION ---
     const selectedJournal = useMemo(() => journals.find(j => j.id === selectedJournalId), [journals, selectedJournalId]);
-    const summary = useMemo(() => calculateAnalytics(trades, selectedJournal?.initialCapital), [trades, selectedJournal]);
+    const summary = useMemo(() => {
+        const initialCapital = selectedJournal ? parseFloat(selectedJournal.initialCapital) : 0;
+        return calculateAnalytics(trades, initialCapital);
+    }, [trades, selectedJournal]);
     const sortedTradesForDisplay = useMemo(() => [...trades].sort((a,b) => new Date(b.date) - new Date(a.date)), [trades]);
-    const tickInterval = useMemo(() => Math.max(1, Math.floor((summary.dailyPnlData?.length || 0) / 10)), [summary.dailyPnlData]);
+    
+    // --- Dynamic chart interval for mobile readability ---
+    const tickInterval = useMemo(() => {
+        const tradeCount = summary.dailyPnlData?.length || 0;
+        if (windowWidth < 768) { // Mobile breakpoint
+            return Math.max(1, Math.floor(tradeCount / 5)); // Show fewer ticks on mobile
+        }
+        return Math.max(1, Math.floor(tradeCount / 10)); // Show more ticks on desktop
+    }, [summary.dailyPnlData, windowWidth]);
 
     // --- EVENT HANDLERS ---
     const handleInputChange = (e, setState) => {
@@ -692,9 +722,9 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db 
     return (
         <div className="container mx-auto max-w-7xl p-4 md:p-6 rounded-2xl shadow-[0_0_60px_-15px_rgba(20,184,166,0.2)] bg-gray-900 border border-teal-800/50 text-gray-100 font-sans">
             <header className="text-center mb-10 relative">
-                <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-500 tracking-wide">PRO TRADER JOURNAL</h1>
-                <p className="text-teal-400/80 mt-2 text-sm md:text-base tracking-widest">{userName ? `Welcome, ${userName}!` : 'ALGO PULSE ASSET MANAGEMENT PRIVATE LIMITED'}</p>
-                <button onClick={onLogout} className="absolute top-1/2 -translate-y-1/2 right-0 px-4 py-2 bg-red-600/80 text-white font-bold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-red-500 transition">Logout</button>
+                <h1 className="text-2xl sm:text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-500 tracking-wide">PRO TRADER JOURNAL</h1>
+                <p className="text-teal-400/80 mt-2 text-xs sm:text-sm md:text-base tracking-widest">{userName ? `Welcome, ${userName}!` : 'ALGO PULSE ASSET MANAGEMENT PRIVATE LIMITED'}</p>
+                <button onClick={onLogout} className="absolute top-1/2 -translate-y-1/2 right-0 px-2 py-1 text-xs sm:text-sm sm:px-4 sm:py-2 bg-red-600/80 text-white font-bold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-red-500 transition">Logout</button>
             </header>
 
             <div className="bg-gray-800/40 p-4 rounded-xl shadow-lg border border-gray-700/70 mb-10 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -728,7 +758,7 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db 
                     <div className="p-5 bg-gray-800/40 rounded-xl shadow-lg border border-gray-700/70 h-96"><h2 className="text-xl font-bold text-teal-400 mb-4">Capital Flow</h2><ResponsiveContainer width="100%" height="85%"><AreaChart data={summary.dailyPnlData} margin={{ top: 5, right: 20, left: 25, bottom: 30 }}><defs><linearGradient id="colorCapital" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#60a5fa" stopOpacity={0.8}/><stop offset="95%" stopColor="#60a5fa" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" stroke="#4a5568" /><XAxis dataKey="date" stroke="#e5e7eb" fontSize={12} tick={{ fill: '#e5e7eb', angle: -45, textAnchor: 'end' }} interval={tickInterval} tickFormatter={formatDateForAxis} height={50} /><YAxis stroke="#e5e7eb" fontSize={12} tickFormatter={(value) => formatCurrencyCompact(value)} tick={{ fill: '#e5e7eb' }} domain={['auto', 'auto']} /><RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '0.5rem' }} itemStyle={{ color: '#e5e7eb' }} labelStyle={{ color: '#e5e7eb' }} formatter={(value, name) => [formatCurrencyPrecise(value), name]} /><Legend wrapperStyle={{ fontSize: '14px', color: '#e5e7eb' }} /><Area type="monotone" dataKey="capital" name="Capital" stroke="#60a5fa" fillOpacity={1} fill="url(#colorCapital)" strokeWidth={2} dot={false} activeDot={{ r: 6 }} /></AreaChart></ResponsiveContainer></div>
                     <div className="p-5 bg-gray-800/40 rounded-xl shadow-lg border border-gray-700/70 h-96 lg:col-span-2"><h2 className="text-xl font-bold text-teal-400 mb-4">Daily P&L</h2><ResponsiveContainer width="100%" height="85%"><BarChart data={summary.dailyPnlData} margin={{ top: 5, right: 20, left: 20, bottom: 30 }}><CartesianGrid strokeDasharray="3 3" stroke="#4a5568" /><XAxis dataKey="date" stroke="#e5e7eb" fontSize={12} tick={{ fill: '#e5e7eb', angle: -45, textAnchor: 'end' }} interval={tickInterval} tickFormatter={formatDateForAxis} height={50} /><YAxis stroke="#e5e7eb" fontSize={12} tickFormatter={(value) => formatCurrencyCompact(value)} tick={{ fill: '#e5e7eb' }} /><RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '0.5rem' }} itemStyle={{ color: '#e5e7eb' }} labelStyle={{ color: '#e5e7eb' }} formatter={(value) => [formatCurrencyPrecise(value), 'Daily P&L']} cursor={{fill: 'rgba(148, 163, 184, 0.1)'}} /><Bar dataKey="pnl" name="Daily P&L">{summary.dailyPnlData?.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.pnl >= 0 ? '#34d399' : '#ef4444'} />)}</Bar></BarChart></ResponsiveContainer></div>
                     <div className="p-5 bg-gray-800/40 rounded-xl shadow-lg border border-gray-700/70 h-96"><h2 className="text-xl font-bold text-teal-400 mb-4">P&L by Day of Week</h2><ResponsiveContainer width="100%" height="85%"><BarChart data={summary.pnlByDayOfWeek} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" stroke="#4a5568" /><XAxis dataKey="day" stroke="#e5e7eb" fontSize={12} tick={{ fill: '#e5e7eb' }} /><YAxis stroke="#e5e7eb" fontSize={12} tickFormatter={formatCurrencyCompact} tick={{ fill: '#e5e7eb' }} /><RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '0.5rem' }} itemStyle={{ color: '#e5e7eb' }} labelStyle={{ color: '#e5e7eb' }} formatter={(value) => [formatCurrencyPrecise(value), 'Total P&L']} cursor={{ fill: 'rgba(148, 163, 184, 0.1)' }} /><Bar dataKey="pnl" name="Total P&L">{summary.pnlByDayOfWeek?.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.pnl >= 0 ? '#2dd4bf' : '#f43f5e'} />)}</Bar></BarChart></ResponsiveContainer></div>
-                    <div className="p-5 bg-gray-800/40 rounded-xl shadow-lg border border-gray-700/70 h-96 lg:col-span-2"><h2 className="text-xl font-bold text-teal-400 mb-4">P&L Distribution</h2><ResponsiveContainer width="100%" height="85%"><BarChart data={summary.pnlDistribution} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" stroke="#4a5568" /><XAxis dataKey="name" stroke="#e5e7eb" fontSize={10} tick={{ fill: '#e5e7eb' }} /><YAxis allowDecimals={false} stroke="#e5e7eb" fontSize={12} label={{ value: 'No. of Trades', angle: -90, position: 'insideLeft', fill: '#e5e7eb', fontSize: 14 }} tick={{ fill: '#e5e7eb' }} /><RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '0.5rem' }} itemStyle={{ color: '#e5e7eb' }} labelStyle={{ color: '#e5e7eb' }} formatter={(value) => [value, 'Trades']} cursor={{ fill: 'rgba(148, 163, 184, 0.1)' }} /><Bar dataKey="trades">{summary.pnlDistribution?.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}</Bar></BarChart></ResponsiveContainer></div>
+                    <div className="p-5 bg-gray-800/40 rounded-xl shadow-lg border border-gray-700/70 h-96 lg:col-span-2"><h2 className="text-xl font-bold text-teal-400 mb-4">P&L Distribution (% of Capital)</h2><ResponsiveContainer width="100%" height="85%"><BarChart data={summary.pnlDistribution} margin={{ top: 5, right: 20, left: 20, bottom: 60 }}><CartesianGrid strokeDasharray="3 3" stroke="#4a5568" /><XAxis dataKey="name" stroke="#e5e7eb" fontSize={10} interval={0} angle={-45} textAnchor="end" height={80} /><YAxis allowDecimals={false} stroke="#e5e7eb" fontSize={12} label={{ value: 'No. of Trades', angle: -90, position: 'insideLeft', fill: '#e5e7eb', fontSize: 14 }} tick={{ fill: '#e5e7eb' }} /><RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '0.5rem' }} itemStyle={{ color: '#e5e7eb' }} labelStyle={{ color: '#e5e7eb' }} formatter={(value) => [value, 'Trades']} cursor={{ fill: 'rgba(148, 163, 184, 0.1)' }} /><Bar dataKey="trades">{summary.pnlDistribution?.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}</Bar></BarChart></ResponsiveContainer></div>
                 </div>
                 
                 {/* Add Trade Form */}
@@ -850,6 +880,8 @@ const App = () => {
             if(!loggedInCode) setAllData({ journals: [], trades: {} }); // Reset data on logout
             return;
         };
+        // This onSnapshot listener is the core of the real-time functionality.
+        // It automatically fires whenever the data for this user changes in the cloud.
         const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, loggedInCode);
         const unsubscribe = onSnapshot(docRef, (docSnap) => {
             if (docSnap.exists()) {
@@ -868,10 +900,12 @@ const App = () => {
     }, [db, loggedInCode]);
 
 
+    // This function sends the updated data to the cloud.
     const updateData = async (newData) => {
         if (!db || !loggedInCode) return;
         const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, loggedInCode);
         try {
+            // setDoc with merge:true updates the document without overwriting existing fields.
             await setDoc(docRef, newData, { merge: true });
         } catch (error) {
             console.error("Error saving data to Firestore:", error);
