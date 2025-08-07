@@ -13,6 +13,10 @@ const TRADES_PER_PAGE = 20;
 const SESSION_KEY = 'proTraderAccessCode';
 const DB_COLLECTION_NAME = 'pro_trader_journals';
 
+// --- IMPORTANT: PLACE YOUR RAZORPAY KEY ID HERE ---
+// Replace 'YOUR_KEY_ID_HERE' with your actual Razorpay Key ID to enable payments.
+const RAZORPAY_KEY_ID = 'YOUR_KEY_ID_HERE';
+
 // --- FIREBASE CONFIG (placeholders, will be handled by environment) ---
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -37,42 +41,53 @@ const formatCurrencyCompact = (value) => {
 const formatPercentage = (value) => `${(value || 0).toFixed(2)}%`;
 const formatDateForAxis = (tickItem) => {
     const date = new Date(tickItem);
-    return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 const generateUniqueId = () => `id_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-// --- UPDATED: Sample data is now relative to capital ---
+// --- SAMPLE DATA GENERATION ---
 const generateSampleTrades = (count, initialCapital) => {
     const trades = [];
     let currentDate = new Date();
-    currentDate.setDate(currentDate.getDate() - 90);
+    currentDate.setMonth(currentDate.getMonth() - 6); // Start 6 months ago
+    let currentCapital = initialCapital;
+
     for (let i = 0; i < count; i++) {
         currentDate.setDate(currentDate.getDate() + 1);
         if (currentDate.getDay() === 0 || currentDate.getDay() === 6) { i--; continue; }
+
+        if (i > 0 && Math.random() < 0.05) {
+            if (Math.random() > 0.5) {
+                currentCapital += Math.random() * (initialCapital * 0.1);
+            } else {
+                currentCapital -= Math.random() * (initialCapital * 0.05);
+            }
+        }
+
         const isProfit = Math.random() > 0.45;
-        // P&L is now a percentage of capital, making it realistic.
-        // Profits can be up to 4%, losses up to 2.5%
         const pnlPercentage = isProfit ? Math.random() * 0.04 : Math.random() * 0.025;
-        const pnlMagnitude = initialCapital * pnlPercentage;
+        const pnlMagnitude = currentCapital * pnlPercentage;
         const grossPnl = isProfit ? pnlMagnitude : -pnlMagnitude;
         const taxesAndCharges = Math.abs(grossPnl) * (Math.random() * 0.05 + 0.02);
+        
         trades.push({
             id: generateUniqueId(),
             date: currentDate.toISOString().split('T')[0],
             day: DAY_NAME_MAPPING[currentDate.getDay()],
             grossPnl: parseFloat(grossPnl.toFixed(2)),
             taxesAndCharges: parseFloat(taxesAndCharges.toFixed(2)),
-            capitalDeployed: initialCapital,
-            notes: isProfit ? 'Good entry based on trend.' : 'Stopped out, risk managed.'
+            capitalDeployed: parseFloat(currentCapital.toFixed(2)),
+            notes: isProfit ? 'Good entry based on trend.' : 'Stopped out, risk managed.',
+            tags: []
         });
     }
     return trades;
 };
 
 
-// --- CORE ANALYTICS LOGIC (RE-AUDITED & FULLY CORRECTED) ---
+// --- CORE ANALYTICS LOGIC (FULLY AUDITED) ---
 const calculateAnalytics = (currentTrades, journalInitialCapital = 0) => {
-  // Return a default state if there are no trades
+  // Return a default state if there are no trades to analyze.
   if (!currentTrades || currentTrades.length === 0) {
     return {
       startingCapital: journalInitialCapital, averageCapital: journalInitialCapital, overallPnl: 0, currentEquity: journalInitialCapital, roi: 0,
@@ -84,7 +99,7 @@ const calculateAnalytics = (currentTrades, journalInitialCapital = 0) => {
     };
   }
 
-  // --- Initial Processing & Sorting ---
+  // Sort trades by date to ensure chronological calculations.
   const sortedTrades = [...currentTrades].sort((a, b) => new Date(a.date) - new Date(b.date));
   const calculatedTrades = sortedTrades.map(trade => ({
     ...trade,
@@ -107,6 +122,7 @@ const calculateAnalytics = (currentTrades, journalInitialCapital = 0) => {
   const avgProfitOnWinDays = totalWinDays > 0 ? totalProfitOnWinDays / totalWinDays : 0;
   const avgLossOnLossDays = totalLossDays > 0 ? totalLossOnLossDays / totalLossDays : 0;
   
+  // --- Key Trading Ratios ---
   const profitFactor = Math.abs(totalLossOnLossDays) > 0 ? Math.abs(totalProfitOnWinDays / totalLossOnLossDays) : 0;
   const expectancy = totalTradesCount > 0 ? totalNetPnl / totalTradesCount : 0;
   const winLossRatio = Math.abs(avgLossOnLossDays) > 0 ? Math.abs(avgProfitOnWinDays / avgLossOnLossDays) : 0;
@@ -114,7 +130,7 @@ const calculateAnalytics = (currentTrades, journalInitialCapital = 0) => {
   const maxProfit = Math.max(0, ...winningTrades.map(t => t.netPnl));
   const maxLoss = Math.min(0, ...losingTrades.map(t => t.netPnl));
 
-  // --- Streaks ---
+  // --- Streaks Calculation ---
   let currentWinStreak = 0, longestWinStreak = 0, currentLossStreak = 0, longestLossStreak = 0;
   calculatedTrades.forEach(trade => {
     if (trade.netPnl > 0) { currentWinStreak++; currentLossStreak = 0; }
@@ -123,7 +139,7 @@ const calculateAnalytics = (currentTrades, journalInitialCapital = 0) => {
     longestLossStreak = Math.max(longestLossStreak, currentLossStreak);
   });
 
-  // --- Equity, Drawdown, and Capital Calculations (FULLY REVISED LOGIC) ---
+  // --- Equity Curve, Drawdown, and Capital Flow Calculation (Audited for correctness) ---
   const dailyPnlData = [];
   let runningEquity = journalInitialCapital;
   let peakEquity = journalInitialCapital;
@@ -131,22 +147,26 @@ const calculateAnalytics = (currentTrades, journalInitialCapital = 0) => {
   
   for (let i = 0; i < calculatedTrades.length; i++) {
       const currentTrade = calculatedTrades[i];
+      // Correctly account for capital changes between days.
       const prevCapital = (i === 0) ? journalInitialCapital : calculatedTrades[i-1].capitalDeployed;
       const prevEquity = (i === 0) ? journalInitialCapital : dailyPnlData[i-1].equity;
       const capitalFlow = currentTrade.capitalDeployed - prevCapital;
+      
+      // Equity at the start of the day is the previous day's equity plus any new capital.
       const equityStartOfDay = prevEquity + capitalFlow;
       runningEquity = equityStartOfDay + currentTrade.netPnl;
+      
+      // Peak equity is the highest point the equity has reached so far.
       peakEquity = Math.max(peakEquity, equityStartOfDay, runningEquity);
       const drawdown = peakEquity - runningEquity;
       maxDrawdownValue = Math.max(maxDrawdownValue, drawdown);
-      dailyPnlData.push({ date: currentTrade.date, pnl: currentTrade.netPnl, equity: runningEquity, capital: currentTrade.capitalDeployed });
+      
+      dailyPnlData.push({ date: currentTrade.date, pnl: currentTrade.netPnl, equity: runningEquity, capital: currentTrade.capitalDeployed, drawdown: -drawdown, capitalFlow: capitalFlow });
   }
 
   const currentEquity = calculatedTrades.length > 0 ? runningEquity : journalInitialCapital;
-  const maxDDPercentage = peakEquity > journalInitialCapital ? (maxDrawdownValue / peakEquity) * 100 : 0;
+  const maxDDPercentage = peakEquity > 0 ? (maxDrawdownValue / peakEquity) * 100 : 0;
   const startingCapital = journalInitialCapital;
-  
-  // CONFIRMED ACCURATE: This calculates the simple arithmetic mean of the capital deployed on each trading day.
   const averageCapital = calculatedTrades.length > 0 ? calculatedTrades.reduce((sum, t) => sum + t.capitalDeployed, 0) / calculatedTrades.length : journalInitialCapital;
   const roi = averageCapital > 0 ? (totalNetPnl / averageCapital) * 100 : 0;
 
@@ -172,7 +192,7 @@ const calculateAnalytics = (currentTrades, journalInitialCapital = 0) => {
       return { month, netPnl: monthInfo.netPnl, capitalDeployed: avgCapitalForMonth, monthlyReturn, date: monthInfo.date };
     }).sort((a, b) => a.date - b.date);
     
-  // --- P&L Distribution (GRANULAR & WIDER Percentage of Capital Bucketing) ---
+  // --- P&L Distribution Histogram Buckets ---
   const pnlPercentageBuckets = [
     { name: '< -3.5%', min: -Infinity, max: -3.5, trades: 0, fill: '#7f1d1d' },
     { name: '-3.5% to -2.5%', min: -3.5, max: -2.5, trades: 0, fill: '#b91c1c' },
@@ -209,7 +229,7 @@ const calculateAnalytics = (currentTrades, journalInitialCapital = 0) => {
 
 // --- UI COMPONENTS ---
 const MemoizedMetricCard = memo(({ title, value, colorClass = 'text-gray-200' }) => (
-  <div className="bg-gray-800/50 p-4 rounded-lg text-center transition-all duration-300 ease-in-out hover:bg-gray-700/50 transform hover:scale-105 hover:shadow-lg hover:shadow-teal-500/20">
+  <div className="bg-gray-800/50 p-4 rounded-lg text-center transition-all duration-300 ease-in-out hover:bg-gray-700/50 transform hover:-translate-y-1 hover:shadow-lg hover:shadow-teal-500/20">
     <h3 className="text-sm text-gray-400 mb-1">{title}</h3>
     <p className={`text-xl lg:text-2xl font-bold ${colorClass}`}>{value}</p>
   </div>
@@ -217,36 +237,66 @@ const MemoizedMetricCard = memo(({ title, value, colorClass = 'text-gray-200' })
 
 const LoginScreen = ({ onLogin, setModal, setView, db }) => {
     const [code, setCode] = useState('');
+    const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
-        if (!code) {
-            setModal({ isOpen: true, type: 'alert', message: 'Please enter an access code.' });
+        if (!code || !password) {
+            setModal({ isOpen: true, type: 'alert', message: 'Please enter an access code and password.' });
             setIsLoading(false);
             return;
         }
-        await onLogin(code);
+        await onLogin(code, password);
         setIsLoading(false);
     };
 
     return (
-        <div className="min-h-screen bg-gray-950 flex flex-col justify-center items-center p-4 text-gray-100 font-sans">
-            <div className="w-full max-w-md">
-                <header className="text-center mb-8">
-                    <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-500 tracking-wide">PRO TRADER JOURNAL</h1>
-                    <p className="text-teal-400/80 mt-2 text-xs md:text-sm tracking-widest">ALGO PULSE ASSET MANAGEMENT PRIVATE LIMITED</p>
-                </header>
-                <div className="bg-gray-900 border border-teal-800/50 rounded-2xl shadow-2xl p-8">
+        <div className="min-h-screen bg-gray-950 flex flex-col justify-center items-center p-4 text-gray-100 font-sans overflow-y-auto">
+            {/* Background Grid and Glow Effect */}
+            <div className="absolute inset-0 -z-10 h-full w-full bg-gray-950 bg-[radial-gradient(#14b8a6_1px,transparent_1px)] [background-size:16px_16px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)]"></div>
+            
+            <div className="w-full max-w-4xl mx-auto text-center flex flex-col items-center space-y-12">
+                {/* Clean, header-less title section matching the reference image style */}
+                <h1 className="text-4xl sm:text-5xl font-bold text-teal-400 tracking-wider whitespace-nowrap">
+                    PRO TRADER JOURNAL
+                </h1>
+
+                {/* Scrolling text effect, properly sized to prevent clipping */}
+                <div className="text-2xl md:text-4xl font-bold flex items-center justify-center flex-wrap">
+                    <span className="text-gray-200 mr-3">Become a</span>
+                    <div className="h-[1.2em] overflow-hidden">
+                        <ul className="animate-scroll-up leading-tight">
+                            <li className="text-teal-400 h-[1.2em] flex items-center justify-center">Systematic</li>
+                            <li className="text-cyan-400 h-[1.2em] flex items-center justify-center">Profitable</li>
+                            <li className="text-emerald-400 h-[1.2em] flex items-center justify-center">Disciplined</li>
+                            <li className="text-violet-400 h-[1.2em] flex items-center justify-center">Consistent</li>
+                            <li className="text-rose-400 h-[1.2em] flex items-center justify-center">Focused</li>
+                            <li className="text-teal-400 h-[1.2em] flex items-center justify-center">Systematic</li>
+                        </ul>
+                    </div>
+                    <span className="text-gray-200 ml-3">Trader</span>
+                </div>
+
+                {/* Login Form */}
+                <div className="bg-gray-900/50 backdrop-blur-sm border border-teal-800/50 rounded-2xl shadow-2xl p-8 w-full max-w-md">
                     <h2 className="text-xl font-bold text-center text-teal-400 mb-6">Login to Your Journal</h2>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <input 
-                            type="password" 
+                            type="text" 
                             placeholder="Access Code" 
                             value={code} 
                             onChange={(e) => setCode(e.target.value)} 
-                            className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-center tracking-widest focus:outline-none focus:ring-2 focus:ring-teal-500" 
+                            className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-center tracking-widest focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" 
+                            required 
+                        />
+                        <input 
+                            type="password" 
+                            placeholder="Password" 
+                            value={password} 
+                            onChange={(e) => setPassword(e.target.value)} 
+                            className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-center tracking-widest focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" 
                             required 
                         />
                         <button type="submit" disabled={isLoading} className="w-full p-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition disabled:bg-gray-500">
@@ -267,28 +317,36 @@ const LoginScreen = ({ onLogin, setModal, setView, db }) => {
 
 const RegisterScreen = ({ setView, setRegistrationDetails, db, setModal }) => {
     const [accessCode, setAccessCode] = useState('');
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        if (password !== confirmPassword) {
+            setModal({ isOpen: true, type: 'alert', message: 'Passwords do not match.' });
+            return;
+        }
+
         setIsLoading(true);
 
         if (!db) {
-            setModal({ isOpen: true, type: 'alert', message: 'Database connection not available. This can happen if Firebase configuration is missing for deployment. Please contact support.' });
+            setModal({ isOpen: true, type: 'alert', message: 'Database connection not available. Please contact support.' });
             setIsLoading(false);
             return;
         }
 
         const trimmedCode = accessCode.trim();
 
-        if (!trimmedCode) {
-            setModal({ isOpen: true, type: 'alert', message: 'Please enter a desired access code.' });
+        if (!/^\d+$/.test(trimmedCode)) {
+            setModal({ isOpen: true, type: 'alert', message: 'Access Code must contain only digits.' });
             setIsLoading(false);
             return;
         }
         
         if (trimmedCode.length < 5) {
-            setModal({ isOpen: true, type: 'alert', message: 'Access Code must be at least 5 characters.' });
+            setModal({ isOpen: true, type: 'alert', message: 'Access Code must be at least 5 digits.' });
             setIsLoading(false);
             return;
         }
@@ -300,12 +358,12 @@ const RegisterScreen = ({ setView, setRegistrationDetails, db, setModal }) => {
             if (docSnap.exists()) {
                 setModal({ isOpen: true, type: 'alert', message: 'This access code is already taken. Please choose another one.' });
             } else {
-                setRegistrationDetails({ accessCode: trimmedCode });
+                setRegistrationDetails({ accessCode: trimmedCode, password: password });
                 setView('plans');
             }
         } catch (error) {
             console.error("Error checking access code:", error);
-            setModal({ isOpen: true, type: 'alert', message: 'An error occurred while checking the access code. Please try again.' });
+            setModal({ isOpen: true, type: 'alert', message: 'An error occurred. Please try again.' });
         } finally {
             setIsLoading(false);
         }
@@ -319,7 +377,9 @@ const RegisterScreen = ({ setView, setRegistrationDetails, db, setModal }) => {
                 </header>
                 <div className="bg-gray-900 border border-teal-800/50 rounded-2xl shadow-2xl p-8">
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <input type="text" placeholder="Desired Access Code (min 5 characters)" value={accessCode} onChange={e => setAccessCode(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white" required />
+                        <input type="tel" pattern="[0-9]*" placeholder="Desired Access Code (5+ digits)" value={accessCode} onChange={e => setAccessCode(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white" required />
+                        <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white" required />
+                        <input type="password" placeholder="Confirm Password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white" required />
                         <button type="submit" disabled={isLoading} className="w-full p-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition disabled:bg-gray-500">
                             {isLoading ? 'Checking...' : 'Proceed to Plans'}
                         </button>
@@ -336,45 +396,170 @@ const RegisterScreen = ({ setView, setRegistrationDetails, db, setModal }) => {
     );
 };
 
-const PlansScreen = ({ registrationDetails, handlePlanActivation }) => {
-    const features = [
-        { icon: '☁️', title: 'Real-Time Cloud Sync', description: 'Your journal is always up-to-date on all your devices. Log a trade on your desktop and review it instantly on your phone.' },
-        { icon: '📊', title: 'Comprehensive Analytics', description: 'Go beyond P&L. Track over 20 key metrics including your Equity Curve, Max Drawdown, Profit Factor, and Win Rate to find your true edge.' },
-        { icon: '📚', title: 'Unlimited Journals & Trades', description: 'Whether you trade one strategy or ten, create specialized journals for each and log every single trade without limits.' },
-        { icon: '📈', title: 'Performance Visualizations', description: 'Visualize your success. Deep-dive into your data with interactive charts for Daily P&L, P&L by Day of the Week, and more.' },
-        { icon: '📝', title: 'Detailed Note-Taking', description: 'Record your strategy, market conditions, and mindset for every trade. Learn from your mistakes and reinforce winning habits.' },
-        { icon: '📄', title: 'Data Export', description: 'Your data is yours. Easily export your entire trade history to CSV for further analysis in Excel or other tools.' },
-        { icon: '🚀', title: 'Lifetime Access & Updates', description: 'This is not a subscription. One single payment grants you lifetime access to all current and future features.' },
-    ];
+const PlansScreen = ({ handlePlanActivation, setModal }) => {
+    const [showPreview, setShowPreview] = useState(false);
+
+    const sampleData = useMemo(() => {
+        const initialCapital = 1000000;
+        const sampleJournal = { id: 'preview_journal', name: 'Preview Strategy', initialCapital: initialCapital };
+        const trades = generateSampleTrades(125, initialCapital);
+        return {
+            userInfo: { name: 'Demo User', plan: 'pro', expiryDate: new Date().getTime() + 365 * 24 * 60 * 60 * 1000 },
+            journals: [sampleJournal],
+            trades: { 'preview_journal': trades }
+        };
+    }, []);
+
+    const Icon = ({ path }) => <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d={path} /></svg>;
+
+    const featureSections = {
+        "Core Account Metrics": [
+            { icon: <Icon path="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />, title: 'Overall P&L', description: 'Your total net profit or loss across all trades.' },
+            { icon: <Icon path="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />, title: 'Current Equity', description: 'The real-time value of your trading account.' },
+            { icon: <Icon path="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />, title: 'Return on Investment (ROI)', description: 'The percentage return on your average deployed capital.' },
+            { icon: <Icon path="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2" />, title: 'Average Capital', description: 'The average amount of capital used per trading day.' },
+        ],
+        "Performance & Risk Ratios": [
+            { icon: <Icon path="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V7l-4.5 4.5L13 8l-4.5 4.5L3 7z" />, title: 'Win Rate', description: 'The percentage of profitable days.' },
+            { icon: <Icon path="M4.874 15.126a5.002 5.002 0 010-6.252M19.126 15.126a5.002 5.002 0 000-6.252" />, title: 'Profit Factor', description: 'Gross profit divided by gross loss. A key health metric.' },
+            { icon: <Icon path="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v.01" />, title: 'Win/Loss Ratio', description: 'The size of your average win versus your average loss.' },
+            { icon: <Icon path="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.085a2 2 0 00-1.736.97l-1.9 3.8z" />, title: 'Expectancy', description: 'The average amount you expect to win or lose per trade.' },
+            { icon: <Icon path="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />, title: 'Max Drawdown (%)', description: 'The largest peak-to-trough drop in your equity.' },
+            { icon: <Icon path="M15 13l-3-3m0 0l-3 3m3-3v12" />, title: 'Max Drawdown (₹)', description: 'The absolute value of your largest equity drop.' },
+        ],
+        "Behavioral Analytics": [
+            { icon: <Icon path="M7 11l5-5m0 0l5 5m-5-5v12" />, title: 'Max Winning Streak', description: 'The highest number of consecutive profitable days.' },
+            { icon: <Icon path="M7 13l5 5m0 0l5-5m-5 5V6" />, title: 'Max Losing Streak', description: 'The highest number of consecutive losing days.' },
+        ],
+        "Advanced Visualizations": [
+            { icon: <Icon path="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H4a2 2 0 00-2 2v12a2 2 0 002 2z" />, title: 'Interactive Equity Curve', description: 'Visually track your account growth over time.' },
+            { icon: <Icon path="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />, title: 'Drawdown "Underwater" Curve', description: 'Analyze the depth and duration of your drawdowns.' },
+            { icon: <Icon path="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />, title: 'Daily P&L Bar Chart', description: 'See the daily fluctuations of your profit and loss.' },
+            { icon: <Icon path="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />, title: 'P&L by Day of Week', description: 'Discover which days you perform best on.' },
+            { icon: <Icon path="M7 16V4m0 12L4 13m3 3l3-3m-3 3H4m3 3h3m-3-3l-3 3m3-3V4m0 12h3m0 0l3-3m-3 3l-3-3m3 3h3m0 0V4m0 12h3m0 0l3-3m-3 3l-3-3" />, title: 'P&L Distribution Histogram', description: 'Understand the magnitude of your wins and losses.' },
+            { icon: <Icon path="M4 6h16M4 10h16M4 14h16M4 18h16" />, title: '6-Month Performance Heatmap', description: 'A calendar view to easily spot patterns and consistency.' },
+        ],
+        "Journaling & Utility": [
+            { icon: <Icon path="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />, title: 'Unlimited Journals', description: 'Create separate journals for different strategies or accounts.' },
+            { icon: <Icon path="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />, title: 'Secure Cloud Sync', description: 'Your data is encrypted, backed up, and synced in real-time.' },
+            { icon: <Icon path="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />, title: 'Detailed Note-Taking', description: 'Log your thoughts, strategy, and mindset for each day.' },
+            { icon: <Icon path="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />, title: 'Export to CSV', description: 'Your data is always yours. Export for offline analysis.' },
+        ]
+    };
 
     return (
-        <div className="min-h-screen bg-gray-950 flex flex-col justify-center items-center p-4 sm:p-6 lg:p-8 text-gray-100 font-sans">
-            <div className="w-full max-w-2xl mx-auto">
-                 <header className="text-center mb-10">
-                    <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-500 tracking-wide">Unlock Your Trading Edge</h1>
-                    <p className="text-teal-400/80 mt-2 text-lg">Your chosen access code: <span className="font-bold text-white">{registrationDetails.accessCode}</span></p>
-                </header>
-                <div className="bg-gray-900 border-2 border-teal-500 rounded-2xl shadow-2xl p-8">
-                    <div className="text-center">
-                        <h2 className="text-3xl font-bold text-teal-400">Pro Trader Journal</h2>
-                        <p className="text-6xl font-bold my-4">FREE</p>
-                        <p className="text-gray-400 mb-8 text-lg">Get <span className="text-teal-400 font-semibold">LIFETIME</span> access, completely free.</p>
+        <div className="min-h-screen bg-gray-950 text-gray-100 font-sans p-4 sm:p-6 lg:p-8 overflow-x-hidden">
+            <style>{`
+                .bg-grid {
+                    background-image: linear-gradient(to right, rgba(20, 184, 166, 0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(20, 184, 166, 0.1) 1px, transparent 1px);
+                    background-size: 3rem 3rem;
+                }
+                .card-glow { position: relative; }
+                .card-glow::before {
+                    content: ''; position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+                    background: radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(20, 184, 166, 0.2), transparent 40%);
+                    border-radius: inherit; opacity: 0; transition: opacity 0.5s;
+                }
+                .card-glow:hover::before { opacity: 1; }
+            `}</style>
+            <div className="absolute inset-0 -z-10 h-full w-full bg-gray-950 bg-grid"></div>
+            <div className="w-full max-w-7xl mx-auto">
+                <header className="text-center my-12 md:my-16">
+                    <h1 className="text-4xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-400 tracking-tight">The Professional's Toolkit for</h1>
+                     <div className="text-4xl md:text-6xl font-extrabold tracking-tight h-16 md:h-20 flex items-center justify-center overflow-hidden mt-2">
+                        <div className="h-16 md:h-20 overflow-hidden">
+                            <ul className="animate-scroll-up leading-tight">
+                                <li className="text-teal-400 h-16 md:h-20 flex items-center">Data-Driven</li>
+                                <li className="text-cyan-400 h-16 md:h-20 flex items-center">Disciplined</li>
+                                <li className="text-emerald-400 h-16 md:h-20 flex items-center">Profitable</li>
+                                <li className="text-violet-400 h-16 md:h-20 flex items-center">Systematic</li>
+                                <li className="text-rose-400 h-16 md:h-20 flex items-center">Consistent</li>
+                                <li className="text-teal-400 h-16 md:h-20 flex items-center">Data-Driven</li>
+                            </ul>
+                        </div>
+                        <span className="ml-3 text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-400">Trading.</span>
                     </div>
-                    <div className="border-t border-gray-700 my-8"></div>
-                    <ul className="space-y-6 text-left text-gray-300 mb-8">
-                        {features.map(feature => (
-                                <li key={feature.title} className="flex items-start">
-                                    <span className="text-2xl mr-4 mt-1">{feature.icon}</span>
-                                    <div>
-                                        <h3 className="font-semibold text-white text-lg">{feature.title}</h3>
-                                        <p className="text-gray-400">{feature.description}</p>
-                                    </div>
-                                </li>
-                            ))}
-                    </ul>
-                    <button onClick={handlePlanActivation} className="w-full p-4 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition text-lg shadow-lg">
-                        Activate My Free Plan
+                </header>
+
+                <div className="flex flex-col sm:flex-row items-stretch justify-center gap-8 my-16">
+                    <div className="w-full max-w-sm bg-gray-900/50 backdrop-blur-sm border border-teal-800/50 rounded-2xl p-8 text-center transition-all duration-300 hover:border-teal-500/70 hover:shadow-2xl hover:shadow-teal-500/10 transform hover:-translate-y-2 flex flex-col">
+                        <div className="flex-grow">
+                            <h3 className="text-2xl font-bold text-gray-300">Pro Monthly</h3>
+                            <p className="mt-2 text-gray-400">Flexible monthly access</p>
+                            <p className="my-8 text-5xl font-extrabold text-white">₹99 <span className="text-xl font-medium text-gray-400">/ month</span></p>
+                        </div>
+                        <button onClick={() => handlePlanActivation('monthly', 9900)} className="w-full p-4 bg-gray-700 text-white font-bold rounded-xl hover:bg-gray-600 transition-all duration-300 text-lg shadow-lg mt-4">
+                            Get Started
+                        </button>
+                    </div>
+
+                    <div className="w-full max-w-sm bg-gray-900/50 backdrop-blur-sm border-2 border-teal-400 rounded-2xl p-8 text-center relative shadow-2xl shadow-teal-500/20 transform sm:scale-105 flex flex-col">
+                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-teal-400 text-gray-900 font-bold px-4 py-1 rounded-full text-sm">
+                            BEST VALUE
+                        </div>
+                        <div className="flex-grow">
+                            <h3 className="text-2xl font-bold text-white">Pro Yearly</h3>
+                            <p className="mt-2 text-teal-300">Save over 58%</p>
+                            <p className="my-4 text-5xl font-extrabold text-white">₹499 <span className="text-xl font-medium text-gray-400">/ year</span></p>
+                            <p className="text-lg text-gray-400 -mt-2 mb-4">(Just ₹{(499/12).toFixed(2)}/mo)</p>
+                        </div>
+                        <button onClick={() => handlePlanActivation('yearly', 49900)} className="w-full p-4 bg-gradient-to-r from-teal-400 to-cyan-500 text-white font-bold rounded-xl hover:opacity-90 transition-opacity duration-300 text-lg shadow-lg shadow-teal-500/30 mt-4">
+                            Go Pro Yearly
+                        </button>
+                    </div>
+                </div>
+
+                <div className="my-24 text-center">
+                    <button onClick={() => setShowPreview(!showPreview)} className="px-8 py-4 bg-gray-800 text-teal-300 font-bold rounded-xl hover:bg-gray-700 transition-all duration-300 text-lg shadow-lg border border-teal-800/50">
+                        {showPreview ? 'Hide the Sneak Peek' : 'Get a Sneak Peek of the Entire Setup'}
                     </button>
+                </div>
+                
+                {showPreview && (
+                    <div className="my-16">
+                        <Dashboard
+                            allData={sampleData}
+                            isPreview={true}
+                            setModal={setModal}
+                            updateData={() => {}}
+                            userId="preview_user"
+                            onLogout={() => {}}
+                            setView={() => {}}
+                            modal={{ isOpen: false }}
+                        />
+                    </div>
+                )}
+
+
+                <div className="my-24">
+                    <h2 className="text-center text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-400 mb-16">What We Have to Offer?</h2>
+                    {Object.entries(featureSections).map(([sectionTitle, features]) => (
+                        <div key={sectionTitle} className="mb-16">
+                            <div className="text-center mb-8">
+                                <h3 className="inline-block relative text-2xl font-bold text-teal-300 pb-2">
+                                    {sectionTitle}
+                                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2/3 h-0.5 bg-gradient-to-r from-teal-500 to-cyan-500"></span>
+                                </h3>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" onMouseMove={(e) => {
+                                for(const card of document.querySelectorAll('.card-glow')) {
+                                    const rect = card.getBoundingClientRect();
+                                    card.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
+                                    card.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
+                                }
+                            }}>
+                                {features.map((feature) => (
+                                    <div key={feature.title} className="card-glow bg-gray-900/50 backdrop-blur-sm p-6 rounded-xl border border-gray-700/50 transition-all duration-300 hover:border-teal-600/80">
+                                        <div className="flex items-center gap-4">
+                                            <div className="text-teal-400">{feature.icon}</div>
+                                            <h3 className="font-bold text-white text-lg">{feature.title}</h3>
+                                        </div>
+                                        <p className="text-gray-400 mt-2 text-sm leading-relaxed">{feature.description}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>
@@ -389,7 +574,7 @@ const PerformanceCalendar = memo(({ dailyPnlData, onDayClick }) => {
         const today = new Date();
         const endDate = new Date(today);
         const startDate = new Date(today);
-        startDate.setDate(startDate.getDate() - 89); // 90 days total
+        startDate.setMonth(startDate.getMonth() - 6); // Show 6 months
 
         const pnlMap = new Map(dailyPnlData.map(d => [d.date, d.pnl]));
         let maxAbsPnlValue = 0;
@@ -468,12 +653,16 @@ const PerformanceCalendar = memo(({ dailyPnlData, onDayClick }) => {
                     {tooltip.content}
                 </div>
             )}
-            <h2 className="text-2xl font-bold text-teal-400 mb-4">Performance Heatmap (Last 90 Days)</h2>
-            <div className="flex gap-1 overflow-x-auto pb-4">
-                <div className="flex flex-col gap-1 text-xs text-gray-400 pr-2 pt-5">
-                    <div className="h-4 flex items-center">Mon</div><div className="h-4"></div>
-                    <div className="h-4 flex items-center">Wed</div><div className="h-4"></div>
-                    <div className="h-4 flex items-center">Fri</div><div className="h-4"></div>
+            <h2 className="text-2xl font-bold text-teal-400 mb-4">Performance Heatmap (Last 6 Months)</h2>
+            <div className="flex gap-2 overflow-x-auto pb-4">
+                <div className="flex flex-col gap-1 text-xs text-gray-400 pr-2">
+                     <div className="h-4"></div> {/* Sun */}
+                     <div className="h-4 flex items-center">Mon</div>
+                     <div className="h-4 flex items-center">Tue</div>
+                     <div className="h-4 flex items-center">Wed</div>
+                     <div className="h-4 flex items-center">Thu</div>
+                     <div className="h-4 flex items-center">Fri</div>
+                     <div className="h-4"></div> {/* Sat */}
                 </div>
                 <div className="relative">
                     <div className="flex gap-1">
@@ -514,7 +703,7 @@ const PerformanceCalendar = memo(({ dailyPnlData, onDayClick }) => {
     );
 });
 
-const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db }) => {
+const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db, setView, isPreview = false }) => {
     // --- STATE MANAGEMENT ---
     const [selectedJournalId, setSelectedJournalId] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -527,11 +716,22 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db 
     const [expandedTradeId, setExpandedTradeId] = useState(null);
     const [highlightedDate, setHighlightedDate] = useState(null);
     const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+    const [isExpired, setIsExpired] = useState(false);
 
     const currentUserData = useMemo(() => allData || { journals: [], trades: {} }, [allData]);
     const journals = currentUserData.journals || [];
     const trades = useMemo(() => (selectedJournalId ? currentUserData.trades?.[selectedJournalId] : []) || [], [currentUserData, selectedJournalId]);
-    const userName = currentUserData?.userInfo?.name;
+    const userInfo = currentUserData?.userInfo;
+    const userName = userInfo?.name;
+
+    // --- Subscription Check ---
+    useEffect(() => {
+        if (userInfo && userInfo.expiryDate) {
+            if (new Date().getTime() > userInfo.expiryDate) {
+                setIsExpired(true);
+            }
+        }
+    }, [userInfo]);
 
     // --- Responsive handler ---
     useEffect(() => {
@@ -576,6 +776,10 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db 
         return Math.max(1, Math.floor(tradeCount / 10)); // Show more ticks on desktop
     }, [summary.dailyPnlData, windowWidth]);
 
+    const handlePreviewClick = () => {
+        setModal({ isOpen: true, type: 'alert', message: 'This feature is disabled in the preview. Please register to get full access!' });
+    };
+
     // --- EVENT HANDLERS ---
     const handleInputChange = (e, setState) => {
         const { name, value } = e.target;
@@ -588,6 +792,7 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db 
 
     const handleCreateJournal = (e) => {
         e.preventDefault();
+        if (isPreview) { handlePreviewClick(); return; }
         const form = e.target;
         const name = form.name.value;
         const initialCapital = form.initialCapital.value;
@@ -600,8 +805,34 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db 
         setModal({ isOpen: false });
     };
 
+    const handleDeleteJournal = () => {
+        if (isPreview) { handlePreviewClick(); return; }
+        if (!selectedJournal) return;
+        setModal({
+            isOpen: true,
+            type: 'confirm',
+            message: `Delete "${selectedJournal.name}" and all its trades? This action cannot be undone.`,
+            onConfirm: () => {
+                const newJournals = currentUserData.journals.filter(j => j.id !== selectedJournalId);
+                const newTrades = { ...currentUserData.trades };
+                delete newTrades[selectedJournalId];
+
+                const newData = {
+                    ...currentUserData,
+                    journals: newJournals,
+                    trades: newTrades
+                };
+
+                updateData(newData);
+                setSelectedJournalId(newJournals.length > 0 ? newJournals[0].id : '');
+                setModal({ isOpen: false });
+            }
+        });
+    };
+
     const handleAddTrade = (e) => {
         e.preventDefault();
+        if (isPreview) { handlePreviewClick(); return; }
         if (!newTrade.date || newTrade.grossPnl === '' || newTrade.taxesAndCharges === '' || newTrade.capitalDeployed === '') { setModal({ isOpen: true, type: 'alert', message: 'Please fill out all fields.' }); return; }
         
         const tradeToAdd = {
@@ -619,6 +850,7 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db 
     };
     
     const handleEditTrade = (tradeToEdit) => {
+        if (isPreview) { handlePreviewClick(); return; }
         setModal({
             isOpen: true,
             type: 'editTrade',
@@ -652,7 +884,8 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db 
     };
 
     const handleDeleteTrade = (idToDelete) => {
-        setModal({ isOpen: true, type: 'confirm', message: 'Are you sure you want to delete this trade?',
+        if (isPreview) { handlePreviewClick(); return; }
+        setModal({ isOpen: true, type: 'confirm', message: 'Are you sure you want to delete this record?',
             onConfirm: () => {
                 const newTradesForJournal = currentUserData.trades[selectedJournalId].filter(t => t.id !== idToDelete);
                 const newData = { ...currentUserData, trades: { ...currentUserData.trades, [selectedJournalId]: newTradesForJournal } };
@@ -663,8 +896,9 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db 
     };
 
     const handleDeleteAllTrades = () => {
-        if (!trades || trades.length === 0) { setModal({ isOpen: true, type: 'alert', message: 'There are no trades to delete.' }); return; }
-        setModal({ isOpen: true, type: 'confirm', message: 'Are you sure you want to delete ALL trades in this journal?',
+        if (isPreview) { handlePreviewClick(); return; }
+        if (!trades || trades.length === 0) { setModal({ isOpen: true, type: 'alert', message: 'There are no records to delete.' }); return; }
+        setModal({ isOpen: true, type: 'confirm', message: 'Are you sure you want to delete ALL records in this journal?',
             onConfirm: () => {
                 const newData = { ...currentUserData, trades: { ...currentUserData.trades, [selectedJournalId]: [] } };
                 updateData(newData);
@@ -674,7 +908,8 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db 
     };
 
     const handleExportCSV = () => {
-        if (!trades || trades.length === 0) { setModal({ isOpen: true, type: 'alert', message: 'No trades to export.' }); return; }
+        if (isPreview) { handlePreviewClick(); return; }
+        if (!trades || trades.length === 0) { setModal({ isOpen: true, type: 'alert', message: 'No records to export.' }); return; }
         const headers = ['ID', 'Date', 'Day', 'Gross P&L', 'Taxes & Charges', 'Net P&L', 'Capital Deployed', 'Notes'];
         const csvContent = [ headers.join(','),
           ...sortedTradesForDisplay.map(trade => {
@@ -693,9 +928,10 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db 
     };
 
     const handleLoadSampleData = () => {
-        setModal({ isOpen: true, type: 'confirm', message: 'This will add sample trades to this journal. Are you sure?',
+        if (isPreview) { handlePreviewClick(); return; }
+        setModal({ isOpen: true, type: 'confirm', message: 'This will add sample data to this journal. Are you sure?',
             onConfirm: () => {
-                const sampleTrades = generateSampleTrades(60, selectedJournal?.initialCapital || 500000);
+                const sampleTrades = generateSampleTrades(125, selectedJournal?.initialCapital || 500000);
                 const newTradesForJournal = [...(currentUserData.trades?.[selectedJournalId] || []), ...sampleTrades];
                 const newData = { ...currentUserData, trades: { ...currentUserData.trades, [selectedJournalId]: newTradesForJournal } };
                 updateData(newData);
@@ -718,13 +954,29 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db 
         }
     };
     
+    const Icon = ({ path, className = "h-6 w-6" }) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d={path} /></svg>;
+
+    const ExpiryOverlay = () => (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex flex-col justify-center items-center z-50 p-4 text-center">
+            <h2 className="text-4xl font-extrabold text-red-500 mb-4">Plan Expired</h2>
+            <p className="text-lg text-gray-200 mb-8">Your access to the Pro Trader Journal has expired. Please renew your plan to continue.</p>
+            <button onClick={() => setView('plans')} className="px-8 py-4 bg-gradient-to-r from-teal-400 to-cyan-500 text-white font-bold rounded-xl hover:opacity-90 transition-opacity duration-300 text-lg shadow-lg shadow-teal-500/30">
+                Renew Your Plan
+            </button>
+        </div>
+    );
+
     // --- RENDER ---
     return (
         <div className="container mx-auto max-w-7xl p-4 md:p-6 rounded-2xl shadow-[0_0_60px_-15px_rgba(20,184,166,0.2)] bg-gray-900 border border-teal-800/50 text-gray-100 font-sans">
+            {isExpired && <ExpiryOverlay />}
             <header className="text-center mb-10 relative">
                 <h1 className="text-2xl sm:text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-500 tracking-wide">PRO TRADER JOURNAL</h1>
-                <p className="text-teal-400/80 mt-2 text-xs sm:text-sm md:text-base tracking-widest">{userName ? `Welcome, ${userName}!` : 'ALGO PULSE ASSET MANAGEMENT PRIVATE LIMITED'}</p>
-                <button onClick={onLogout} className="absolute top-1/2 -translate-y-1/2 right-0 px-2 py-1 text-xs sm:text-sm sm:px-4 sm:py-2 bg-red-600/80 text-white font-bold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-red-500 transition">Logout</button>
+                <div className="flex flex-col sm:flex-row justify-center items-center gap-x-4 mt-2">
+                    {userName && userName !== 'Test User' && <p className="text-teal-400/80 text-xs sm:text-sm md:text-base tracking-widest">Welcome, {userName}!</p>}
+                    {userInfo?.expiryDate && <p className="text-amber-400/80 text-xs sm:text-sm">Plan expires on: {new Date(userInfo.expiryDate).toLocaleDateString()}</p>}
+                </div>
+                <button onClick={isPreview ? handlePreviewClick : onLogout} className={`absolute top-1/2 -translate-y-1/2 right-0 px-2 py-1 text-xs sm:text-sm sm:px-4 sm:py-2 bg-red-600/80 text-white font-bold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-red-500 transition-all duration-300 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>Logout</button>
             </header>
 
             <div className="bg-gray-800/40 p-4 rounded-xl shadow-lg border border-gray-700/70 mb-10 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -734,41 +986,47 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db 
                         {journals.map(j => <option key={j.id} value={j.id}>{j.name}</option>)}
                     </select>
                 </div>
-                <button onClick={() => setModal({ isOpen: true, type: 'createJournal', onConfirm: handleCreateJournal, defaultValues: {name: '', initialCapital: ''} })} className="w-full sm:w-auto px-4 py-2 bg-teal-500 text-white font-bold rounded-lg shadow-md hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-teal-500 transition"> + New Journal </button>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    <button onClick={() => setModal({ isOpen: true, type: 'createJournal', onConfirm: handleCreateJournal })} className={`w-full sm:w-auto px-4 py-2 bg-teal-500 text-white font-bold rounded-lg shadow-md hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-teal-500 transition-all duration-300 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}> + New Journal </button>
+                    {selectedJournal && (
+                        <button onClick={handleDeleteJournal} className={`w-full sm:w-auto px-4 py-2 bg-red-600/80 text-white font-bold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-red-500 transition-all duration-300 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>Delete Journal</button>
+                    )}
+                </div>
             </div>
             
             {journals.length === 0 && (
                 <div className="text-center p-10 bg-gray-800/30 rounded-lg">
                     <h2 className="text-2xl font-bold text-teal-400">Welcome!</h2>
-                    <p className="text-gray-300 mt-2 mb-4">Create your first journal to start tracking your trades.</p>
-                    <button onClick={() => setModal({ isOpen: true, type: 'createJournal', onConfirm: handleCreateJournal, defaultValues: {name: '', initialCapital: ''} })} className="px-6 py-3 bg-teal-500 text-white font-bold rounded-lg shadow-md hover:bg-teal-600 transition">+ Create First Journal</button>
+                    <p className="text-gray-300 mt-2 mb-4">Create your first journal to start tracking your daily records.</p>
+                    <button onClick={() => setModal({ isOpen: true, type: 'createJournal', onConfirm: handleCreateJournal })} className={`px-6 py-3 bg-teal-500 text-white font-bold rounded-lg shadow-md hover:bg-teal-600 transition-all duration-300 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>+ Create First Journal</button>
                 </div>
             )}
 
             {selectedJournal && (
             <>
                 {/* Metric Cards Sections */}
-                <div className="mb-10"><h2 className="text-2xl font-bold text-teal-400 mb-4">Account Overview</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><MemoizedMetricCard title="Current Equity" value={formatCurrencyCompact(summary.currentEquity)} colorClass={summary.currentEquity >= summary.startingCapital ? 'text-green-400' : 'text-red-400'} /><MemoizedMetricCard title="Overall P&L" value={formatCurrencyCompact(summary.overallPnl)} colorClass={summary.overallPnl >= 0 ? 'text-green-400' : 'text-red-400'} /><MemoizedMetricCard title="Average Capital" value={formatCurrencyCompact(summary.averageCapital)} /><MemoizedMetricCard title="Return on Investment" value={formatPercentage(summary.roi)} colorClass={summary.roi >= 0 ? 'text-green-400' : 'text-red-400'} /></div></div>
-                <div className="mb-10"><h2 className="text-2xl font-bold text-teal-400 mb-4">Performance Metrics</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><MemoizedMetricCard title="Win Rate" value={formatPercentage(summary.winRate)} colorClass="text-green-400" /><MemoizedMetricCard title="Profit Factor" value={(summary.profitFactor || 0).toFixed(2)} colorClass="text-cyan-400" /><MemoizedMetricCard title="Win/Loss Ratio" value={(summary.winLossRatio || 0).toFixed(2)} colorClass="text-cyan-400" /><MemoizedMetricCard title="Expectancy" value={formatCurrencyCompact(summary.expectancy)} colorClass={(summary.expectancy || 0) >= 0 ? 'text-green-400' : 'text-red-400'} /><MemoizedMetricCard title="Avg. Win" value={formatCurrencyCompact(summary.avgProfitOnWinDays)} colorClass="text-green-400" /><MemoizedMetricCard title="Avg. Loss" value={formatCurrencyCompact(summary.avgLossOnLossDays)} colorClass="text-red-400" /><MemoizedMetricCard title="Total Trades" value={summary.totalTrades || 0} /><MemoizedMetricCard title="Winning Trades" value={summary.winDays || 0} colorClass="text-green-400" /></div></div>
-                <div className="mb-10"><h2 className="text-2xl font-bold text-teal-400 mb-4">Risk & Extremes</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><MemoizedMetricCard title="Max Drawdown" value={formatPercentage(summary.maxDDPercentage)} colorClass="text-red-400" /><MemoizedMetricCard title="Max Drawdown (Abs)" value={formatCurrencyCompact(summary.maxDrawdown)} colorClass="text-red-400" /><MemoizedMetricCard title="Max Profit" value={formatCurrencyCompact(summary.maxProfit)} colorClass="text-green-400" /><MemoizedMetricCard title="Max Loss" value={formatCurrencyCompact(summary.maxLoss)} colorClass="text-red-400" /><MemoizedMetricCard title="Winning Streak" value={summary.maxWinningStreak || 0} colorClass="text-green-400" /><MemoizedMetricCard title="Losing Streak" value={summary.maxLosingStreak || 0} colorClass="text-red-400" /><MemoizedMetricCard title="Losing Trades" value={summary.lossDays || 0} colorClass="text-red-400" /></div></div>
+                <div className="mb-10"><h2 className="flex items-center gap-3 text-2xl font-bold text-teal-400 mb-4"><Icon path="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />Account Overview</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><MemoizedMetricCard title="Current Equity" value={formatCurrencyCompact(summary.currentEquity)} colorClass={summary.currentEquity >= summary.startingCapital ? 'text-green-400' : 'text-red-400'} /><MemoizedMetricCard title="Overall P&L" value={formatCurrencyCompact(summary.overallPnl)} colorClass={summary.overallPnl >= 0 ? 'text-green-400' : 'text-red-400'} /><MemoizedMetricCard title="Average Capital" value={formatCurrencyCompact(summary.averageCapital)} /><MemoizedMetricCard title="Return on Investment" value={formatPercentage(summary.roi)} colorClass={summary.roi >= 0 ? 'text-green-400' : 'text-red-400'} /></div></div>
+                <div className="mb-10"><h2 className="flex items-center gap-3 text-2xl font-bold text-teal-400 mb-4"><Icon path="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />Performance Metrics</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><MemoizedMetricCard title="Win Rate" value={formatPercentage(summary.winRate)} colorClass="text-green-400" /><MemoizedMetricCard title="Profit Factor" value={(summary.profitFactor || 0).toFixed(2)} colorClass="text-cyan-400" /><MemoizedMetricCard title="Win/Loss Ratio" value={(summary.winLossRatio || 0).toFixed(2)} colorClass="text-cyan-400" /><MemoizedMetricCard title="Expectancy" value={formatCurrencyCompact(summary.expectancy)} colorClass={(summary.expectancy || 0) >= 0 ? 'text-green-400' : 'text-red-400'} /><MemoizedMetricCard title="Avg. Win" value={formatCurrencyCompact(summary.avgProfitOnWinDays)} colorClass="text-green-400" /><MemoizedMetricCard title="Avg. Loss" value={formatCurrencyCompact(summary.avgLossOnLossDays)} colorClass="text-red-400" /><MemoizedMetricCard title="Total Days" value={summary.totalTrades || 0} /><MemoizedMetricCard title="Profitable Days" value={summary.winDays || 0} colorClass="text-green-400" /></div></div>
+                <div className="mb-10"><h2 className="flex items-center gap-3 text-2xl font-bold text-teal-400 mb-4"><Icon path="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />Risk & Extremes</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><MemoizedMetricCard title="Max Drawdown" value={formatPercentage(summary.maxDDPercentage)} colorClass="text-red-400" /><MemoizedMetricCard title="Max Drawdown (Abs)" value={formatCurrencyCompact(summary.maxDrawdown)} colorClass="text-red-400" /><MemoizedMetricCard title="Max Profit" value={formatCurrencyCompact(summary.maxProfit)} colorClass="text-green-400" /><MemoizedMetricCard title="Max Loss" value={formatCurrencyCompact(summary.maxLoss)} colorClass="text-red-400" /><MemoizedMetricCard title="Winning Streak" value={summary.maxWinningStreak || 0} colorClass="text-green-400" /><MemoizedMetricCard title="Losing Streak" value={summary.maxLosingStreak || 0} colorClass="text-red-400" /><MemoizedMetricCard title="Losing Days" value={summary.lossDays || 0} colorClass="text-red-400" /></div></div>
                 
                 {/* Charts Section */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
                     <div className="p-5 bg-gray-800/40 rounded-xl shadow-lg border border-gray-700/70 h-96"><h2 className="text-xl font-bold text-teal-400 mb-4">Equity Curve</h2><ResponsiveContainer width="100%" height="85%"><LineChart data={summary.dailyPnlData} margin={{ top: 5, right: 20, left: 25, bottom: 30 }}><CartesianGrid strokeDasharray="3 3" stroke="#4a5568" /><XAxis dataKey="date" stroke="#e5e7eb" fontSize={12} tick={{ fill: '#e5e7eb', angle: -45, textAnchor: 'end' }} interval={tickInterval} tickFormatter={formatDateForAxis} height={50} /><YAxis stroke="#e5e7eb" fontSize={12} tickFormatter={(value) => formatCurrencyCompact(value)} tick={{ fill: '#e5e7eb' }} domain={['auto', 'auto']} /><RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '0.5rem' }} itemStyle={{ color: '#e5e7eb' }} labelStyle={{ color: '#e5e7eb' }} formatter={(value, name) => [formatCurrencyPrecise(value), name]} /><Legend wrapperStyle={{ fontSize: '14px', color: '#e5e7eb' }} /><Line type="monotone" dataKey="equity" name="Equity" stroke="#2dd4bf" strokeWidth={2} dot={false} activeDot={{ r: 6 }} /></LineChart></ResponsiveContainer></div>
-                    <div className="p-5 bg-gray-800/40 rounded-xl shadow-lg border border-gray-700/70 h-96"><h2 className="text-xl font-bold text-teal-400 mb-4">Capital Flow</h2><ResponsiveContainer width="100%" height="85%"><AreaChart data={summary.dailyPnlData} margin={{ top: 5, right: 20, left: 25, bottom: 30 }}><defs><linearGradient id="colorCapital" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#60a5fa" stopOpacity={0.8}/><stop offset="95%" stopColor="#60a5fa" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" stroke="#4a5568" /><XAxis dataKey="date" stroke="#e5e7eb" fontSize={12} tick={{ fill: '#e5e7eb', angle: -45, textAnchor: 'end' }} interval={tickInterval} tickFormatter={formatDateForAxis} height={50} /><YAxis stroke="#e5e7eb" fontSize={12} tickFormatter={(value) => formatCurrencyCompact(value)} tick={{ fill: '#e5e7eb' }} domain={['auto', 'auto']} /><RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '0.5rem' }} itemStyle={{ color: '#e5e7eb' }} labelStyle={{ color: '#e5e7eb' }} formatter={(value, name) => [formatCurrencyPrecise(value), name]} /><Legend wrapperStyle={{ fontSize: '14px', color: '#e5e7eb' }} /><Area type="monotone" dataKey="capital" name="Capital" stroke="#60a5fa" fillOpacity={1} fill="url(#colorCapital)" strokeWidth={2} dot={false} activeDot={{ r: 6 }} /></AreaChart></ResponsiveContainer></div>
+                    <div className="p-5 bg-gray-800/40 rounded-xl shadow-lg border border-gray-700/70 h-96"><h2 className="text-xl font-bold text-teal-400 mb-4">Drawdown</h2><ResponsiveContainer width="100%" height="85%"><AreaChart data={summary.dailyPnlData} margin={{ top: 5, right: 20, left: 25, bottom: 30 }}><defs><linearGradient id="colorDrawdown" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/><stop offset="95%" stopColor="#ef4444" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" stroke="#4a5568" /><XAxis dataKey="date" stroke="#e5e7eb" fontSize={12} tick={{ fill: '#e5e7eb', angle: -45, textAnchor: 'end' }} interval={tickInterval} tickFormatter={formatDateForAxis} height={50} /><YAxis stroke="#e5e7eb" fontSize={12} tickFormatter={(value) => formatCurrencyCompact(value)} tick={{ fill: '#e5e7eb' }} domain={['auto', 0]} /><RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '0.5rem' }} itemStyle={{ color: '#e5e7eb' }} labelStyle={{ color: '#e5e7eb' }} formatter={(value, name) => [formatCurrencyPrecise(value), name]} /><Area type="monotone" dataKey="drawdown" name="Drawdown" stroke="#ef4444" fillOpacity={1} fill="url(#colorDrawdown)" strokeWidth={2} dot={false} activeDot={{ r: 6 }} /></AreaChart></ResponsiveContainer></div>
                     <div className="p-5 bg-gray-800/40 rounded-xl shadow-lg border border-gray-700/70 h-96 lg:col-span-2"><h2 className="text-xl font-bold text-teal-400 mb-4">Daily P&L</h2><ResponsiveContainer width="100%" height="85%"><BarChart data={summary.dailyPnlData} margin={{ top: 5, right: 20, left: 20, bottom: 30 }}><CartesianGrid strokeDasharray="3 3" stroke="#4a5568" /><XAxis dataKey="date" stroke="#e5e7eb" fontSize={12} tick={{ fill: '#e5e7eb', angle: -45, textAnchor: 'end' }} interval={tickInterval} tickFormatter={formatDateForAxis} height={50} /><YAxis stroke="#e5e7eb" fontSize={12} tickFormatter={(value) => formatCurrencyCompact(value)} tick={{ fill: '#e5e7eb' }} /><RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '0.5rem' }} itemStyle={{ color: '#e5e7eb' }} labelStyle={{ color: '#e5e7eb' }} formatter={(value) => [formatCurrencyPrecise(value), 'Daily P&L']} cursor={{fill: 'rgba(148, 163, 184, 0.1)'}} /><Bar dataKey="pnl" name="Daily P&L">{summary.dailyPnlData?.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.pnl >= 0 ? '#34d399' : '#ef4444'} />)}</Bar></BarChart></ResponsiveContainer></div>
+                    <div className="p-5 bg-gray-800/40 rounded-xl shadow-lg border border-gray-700/70 h-96"><h2 className="text-xl font-bold text-teal-400 mb-4">Capital Deployed</h2><ResponsiveContainer width="100%" height="85%"><LineChart data={summary.dailyPnlData} margin={{ top: 5, right: 20, left: 25, bottom: 30 }}><CartesianGrid strokeDasharray="3 3" stroke="#4a5568" /><XAxis dataKey="date" stroke="#e5e7eb" fontSize={12} tick={{ fill: '#e5e7eb', angle: -45, textAnchor: 'end' }} interval={tickInterval} tickFormatter={formatDateForAxis} height={50} /><YAxis stroke="#e5e7eb" fontSize={12} tickFormatter={(value) => formatCurrencyCompact(value)} tick={{ fill: '#e5e7eb' }} domain={['auto', 'auto']} /><RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '0.5rem' }} itemStyle={{ color: '#e5e7eb' }} labelStyle={{ color: '#e5e7eb' }} formatter={(value, name) => [formatCurrencyPrecise(value), name]} /><Legend wrapperStyle={{ fontSize: '14px', color: '#e5e7eb' }} /><Line type="monotone" dataKey="capital" name="Capital" stroke="#3b82f6" strokeWidth={2} dot={false} activeDot={{ r: 6 }} /></LineChart></ResponsiveContainer></div>
                     <div className="p-5 bg-gray-800/40 rounded-xl shadow-lg border border-gray-700/70 h-96"><h2 className="text-xl font-bold text-teal-400 mb-4">P&L by Day of Week</h2><ResponsiveContainer width="100%" height="85%"><BarChart data={summary.pnlByDayOfWeek} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" stroke="#4a5568" /><XAxis dataKey="day" stroke="#e5e7eb" fontSize={12} tick={{ fill: '#e5e7eb' }} /><YAxis stroke="#e5e7eb" fontSize={12} tickFormatter={formatCurrencyCompact} tick={{ fill: '#e5e7eb' }} /><RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '0.5rem' }} itemStyle={{ color: '#e5e7eb' }} labelStyle={{ color: '#e5e7eb' }} formatter={(value) => [formatCurrencyPrecise(value), 'Total P&L']} cursor={{ fill: 'rgba(148, 163, 184, 0.1)' }} /><Bar dataKey="pnl" name="Total P&L">{summary.pnlByDayOfWeek?.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.pnl >= 0 ? '#2dd4bf' : '#f43f5e'} />)}</Bar></BarChart></ResponsiveContainer></div>
-                    <div className="p-5 bg-gray-800/40 rounded-xl shadow-lg border border-gray-700/70 h-96 lg:col-span-2"><h2 className="text-xl font-bold text-teal-400 mb-4">P&L Distribution (% of Capital)</h2><ResponsiveContainer width="100%" height="85%"><BarChart data={summary.pnlDistribution} margin={{ top: 5, right: 20, left: 20, bottom: 60 }}><CartesianGrid strokeDasharray="3 3" stroke="#4a5568" /><XAxis dataKey="name" stroke="#e5e7eb" fontSize={10} interval={0} angle={-45} textAnchor="end" height={80} /><YAxis allowDecimals={false} stroke="#e5e7eb" fontSize={12} label={{ value: 'No. of Trades', angle: -90, position: 'insideLeft', fill: '#e5e7eb', fontSize: 14 }} tick={{ fill: '#e5e7eb' }} /><RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '0.5rem' }} itemStyle={{ color: '#e5e7eb' }} labelStyle={{ color: '#e5e7eb' }} formatter={(value) => [value, 'Trades']} cursor={{ fill: 'rgba(148, 163, 184, 0.1)' }} /><Bar dataKey="trades">{summary.pnlDistribution?.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}</Bar></BarChart></ResponsiveContainer></div>
+                    <div className="p-5 bg-gray-800/40 rounded-xl shadow-lg border border-gray-700/70 h-96 lg:col-span-2"><h2 className="text-xl font-bold text-teal-400 mb-4">P&L Distribution (% of Capital)</h2><ResponsiveContainer width="100%" height="85%"><BarChart data={summary.pnlDistribution} margin={{ top: 5, right: 20, left: 20, bottom: 60 }}><CartesianGrid strokeDasharray="3 3" stroke="#4a5568" /><XAxis dataKey="name" stroke="#e5e7eb" fontSize={10} interval={0} angle={-45} textAnchor="end" height={80} /><YAxis allowDecimals={false} stroke="#e5e7eb" fontSize={12} label={{ value: 'No. of Days', angle: -90, position: 'insideLeft', fill: '#e5e7eb', fontSize: 14 }} tick={{ fill: '#e5e7eb' }} /><RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '0.5rem' }} itemStyle={{ color: '#e5e7eb' }} labelStyle={{ color: '#e5e7eb' }} formatter={(value) => [value, 'Days']} cursor={{ fill: 'rgba(148, 163, 184, 0.1)' }} /><Bar dataKey="trades">{summary.pnlDistribution?.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}</Bar></BarChart></ResponsiveContainer></div>
                 </div>
                 
                 {/* Add Trade Form */}
-                <div className="bg-gray-800/40 p-6 rounded-xl shadow-lg border border-gray-700/70 mb-10"><h2 className="text-2xl font-bold text-teal-400 mb-4">Add New Trade</h2><form onSubmit={handleAddTrade} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start"><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Date</label><input type="date" name="date" value={newTrade.date} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required/></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Gross P&L (₹)</label><input type="number" name="grossPnl" value={newTrade.grossPnl} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" placeholder="e.g., 5000" step="0.01" required/></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Charges (₹)</label><input type="number" name="taxesAndCharges" value={newTrade.taxesAndCharges} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" placeholder="e.g., 500" step="0.01" required/></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Capital (₹)</label><input type="number" name="capitalDeployed" value={newTrade.capitalDeployed} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" placeholder="Capital for this day" step="1" required/></div><div className="lg:col-span-3 flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Notes / Strategy</label><textarea name="notes" value={newTrade.notes} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg w-full text-white" placeholder="e.g., Faded the morning rally..." rows="1"></textarea></div><button type="submit" disabled={isLoading} className="w-full p-3 self-end bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition disabled:bg-gray-500">{isLoading ? 'Adding...' : 'Add Trade'}</button></form></div>
+                <div className="bg-gray-800/40 p-6 rounded-xl shadow-lg border border-gray-700/70 mb-10"><h2 className="text-2xl font-bold text-teal-400 mb-4">Add Day's Record</h2><form onSubmit={handleAddTrade} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start"><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Date</label><input type="date" name="date" value={newTrade.date} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required/></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Gross P&L (₹)</label><input type="number" name="grossPnl" value={newTrade.grossPnl} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" placeholder="e.g., 5000" step="0.01" required/></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Charges (₹)</label><input type="number" name="taxesAndCharges" value={newTrade.taxesAndCharges} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" placeholder="e.g., 500" step="0.01" required/></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Capital (₹)</label><input type="number" name="capitalDeployed" value={newTrade.capitalDeployed} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" placeholder="Capital for this day" step="1" required/></div><div className="lg:col-span-3 flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Notes / Strategy</label><textarea name="notes" value={newTrade.notes} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg w-full text-white" placeholder="e.g., Faded the morning rally..." rows="1"></textarea></div><button type="submit" disabled={isLoading || isPreview} className={`w-full p-3 self-end bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-all duration-300 disabled:bg-gray-500 ${isPreview ? 'cursor-not-allowed' : ''}`}>{isLoading ? 'Adding...' : 'Add Record'}</button></form></div>
 
                 {/* Tables Section */}
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                     <div className="bg-gray-800/40 p-5 rounded-xl shadow-lg border border-gray-700/70 overflow-x-auto"><h2 className="text-2xl font-bold text-teal-400 mb-4">Monthly Performance</h2><div className="max-h-96 overflow-y-auto"><table className="min-w-full"><thead className="border-b border-gray-600"><tr className="text-gray-300 text-sm uppercase tracking-wider text-left"><th className="p-3 font-semibold">Month</th><th className="p-3 font-semibold">Net P&L</th><th className="p-3 font-semibold">Avg. Capital</th><th className="p-3 font-semibold">Return</th></tr></thead><tbody>{summary.monthlyPerformance?.length > 0 ? summary.monthlyPerformance.map(m => (<tr key={m.month} className="border-b border-gray-700/50 hover:bg-gray-800/60 transition-colors"><td className="p-3 whitespace-nowrap">{m.month}</td><td className={`p-3 whitespace-nowrap font-semibold ${(m.netPnl || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>{formatCurrencyCompact(m.netPnl)}</td><td className="p-3 whitespace-nowrap text-gray-300">{formatCurrencyCompact(m.capitalDeployed)}</td><td className={`p-3 whitespace-nowrap font-semibold ${(m.monthlyReturn || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>{formatPercentage(m.monthlyReturn)}</td></tr>)) : (<tr><td colSpan="4" className="p-8 text-center text-gray-400">No monthly data to display.</td></tr>)}</tbody></table></div></div>
                     <div className="bg-gray-800/40 p-5 rounded-xl shadow-lg border border-gray-700/70 overflow-x-auto">
-                        <div className="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 className="text-2xl font-bold text-teal-400">Trade History ({trades.length})</h2><div className="flex gap-2"><button onClick={handleLoadSampleData} className="px-4 py-2 bg-indigo-600/80 text-white font-bold rounded-lg hover:bg-indigo-700 transition">Load Sample</button><button onClick={handleDeleteAllTrades} className="px-3 py-2 bg-red-600/80 text-white font-bold rounded-lg hover:bg-red-700 transition" aria-label="Delete All Trades"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg></button><button onClick={handleExportCSV} className="px-4 py-2 bg-teal-500/80 text-white font-bold rounded-lg hover:bg-teal-600 transition flex items-center gap-2" aria-label="Export to CSV"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" /></svg><span className="hidden sm:inline">Export</span></button></div></div>
+                        <div className="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 className="text-2xl font-bold text-teal-400">Daily History ({trades.length})</h2><div className="flex gap-2"><button onClick={handleLoadSampleData} className={`px-4 py-2 bg-indigo-600/80 text-white font-bold rounded-lg hover:bg-indigo-700 transition-all duration-300 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>Load Sample</button><button onClick={handleDeleteAllTrades} className={`px-3 py-2 bg-red-600/80 text-white font-bold rounded-lg hover:bg-red-700 transition-all duration-300 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`} aria-label="Delete All Records"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg></button><button onClick={handleExportCSV} className={`px-4 py-2 bg-teal-500/80 text-white font-bold rounded-lg hover:bg-teal-600 transition-all duration-300 flex items-center gap-2 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`} aria-label="Export to CSV"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" /></svg><span className="hidden sm:inline">Export</span></button></div></div>
                         <div className="max-h-96 overflow-y-auto">
                             <table className="min-w-full"><thead className="sticky top-0 bg-gray-800/95 backdrop-blur-sm border-b border-gray-600"><tr className="text-gray-300 text-sm uppercase text-left"><th className="p-3">Date</th><th className="p-3">Net P&L</th><th className="p-3 text-right">Actions</th></tr></thead>
                                 <tbody>
@@ -781,19 +1039,19 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db 
                                                     <td className="p-3">{trade.date}</td>
                                                     <td className={`p-3 font-semibold ${netPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>{formatCurrencyPrecise(netPnl)}</td>
                                                     <td className="p-3 text-right space-x-2">
-                                                        <button onClick={(e) => { e.stopPropagation(); handleEditTrade(trade); }} className="px-3 py-1 bg-blue-600/20 text-blue-400 hover:bg-blue-500 hover:text-white text-xs font-bold rounded-md transition-colors">EDIT</button>
-                                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteTrade(trade.id); }} className="px-3 py-1 bg-red-600/20 text-red-400 hover:bg-red-500 hover:text-white text-xs font-bold rounded-md transition-colors">DELETE</button>
+                                                        <button onClick={(e) => { e.stopPropagation(); handleEditTrade(trade); }} className={`px-3 py-1 bg-blue-600/20 text-blue-400 hover:bg-blue-500 hover:text-white text-xs font-bold rounded-md transition-colors ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>EDIT</button>
+                                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteTrade(trade.id); }} className={`px-3 py-1 bg-red-600/20 text-red-400 hover:bg-red-500 hover:text-white text-xs font-bold rounded-md transition-colors ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>DELETE</button>
                                                     </td>
                                                 </tr>
                                                 {isExpanded && (<tr className="bg-gray-800/50"><td colSpan="3" className="p-4"><div className="text-gray-300"><p><strong className="text-teal-400">Gross P&L:</strong> {formatCurrencyPrecise(trade.grossPnl)}</p><p><strong className="text-teal-400">Charges:</strong> {formatCurrencyPrecise(trade.taxesAndCharges)}</p><p><strong className="text-teal-400">Capital:</strong> {formatCurrencyPrecise(trade.capitalDeployed)}</p>{trade.notes && <p className="mt-2"><strong className="text-teal-400">Notes:</strong> {trade.notes}</p>}</div></td></tr>)}
                                             </React.Fragment>
                                         );
                                     })}
-                                     {trades.length === 0 && (<tr><td colSpan="3" className="p-8 text-center text-gray-400">No trades recorded yet.</td></tr>)}
+                                     {trades.length === 0 && (<tr><td colSpan="3" className="p-8 text-center text-gray-400">No records yet.</td></tr>)}
                                 </tbody>
                             </table>
                         </div>
-                         {visibleTradeCount < trades.length && (<div className="mt-4 text-center"><button onClick={() => setVisibleTradeCount(prev => prev + TRADES_PER_PAGE)} className="text-teal-400 hover:text-teal-300 font-semibold">Load More</button></div>)}
+                         {visibleTradeCount < trades.length && (<div className="mt-4 text-center"><button onClick={() => setVisibleTradeCount(prev => prev + TRADES_PER_PAGE)} className="text-teal-400 hover:text-teal-300 font-semibold transition-colors duration-300">Load More</button></div>)}
                     </div>
                 </div>
                  <div className="mb-10"><PerformanceCalendar dailyPnlData={summary.dailyPnlData} onDayClick={handleDayClickFromCalendar} /></div>
@@ -843,16 +1101,18 @@ const App = () => {
         }
     }, []);
 
-    // Load Tone.js script
+    // Load Razorpay and Tone.js scripts
     useEffect(() => {
-        const scriptId = 'tone-js-script';
-        if (document.getElementById(scriptId)) return; 
-        const script = document.createElement('script');
-        script.id = scriptId;
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js';
-        script.async = true;
-        document.body.appendChild(script);
-        return () => { const existingScript = document.getElementById(scriptId); if (existingScript) document.body.removeChild(existingScript); }
+        const loadScript = (src, id) => {
+            if (document.getElementById(id)) return;
+            const script = document.createElement('script');
+            script.id = id;
+            script.src = src;
+            script.async = true;
+            document.body.appendChild(script);
+        };
+        loadScript('https://checkout.razorpay.com/v1/checkout.js', 'razorpay-checkout-js');
+        loadScript('https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js', 'tone-js-script');
     }, []);
 
     // Listen for auth state changes and check local storage
@@ -876,10 +1136,50 @@ const App = () => {
 
     // Data fetching and real-time updates from Firestore
     useEffect(() => {
+        // Handle static test user with an expired plan for demo purposes
+        if (loggedInCode === '0000000000') {
+            const sampleInitialCapital = 500000;
+            const sampleJournal = { id: 'sample_journal_1', name: 'Test Strategy', initialCapital: sampleInitialCapital, createdAt: new Date().toISOString() };
+            const sampleTrades = generateSampleTrades(125, sampleInitialCapital);
+            const testUserData = {
+                userInfo: { 
+                    name: 'Test User (Expired)', 
+                    plan: 'expired', 
+                    // Set expiry date to the past to trigger the expired popup
+                    expiryDate: new Date().getTime() - 1000 
+                },
+                journals: [sampleJournal],
+                trades: { 'sample_journal_1': sampleTrades }
+            };
+            setAllData(testUserData);
+            setIsLoading(false);
+            return; 
+        }
+
+        // Handle static test user with a working plan
+        if (loggedInCode === '1111111111') {
+            const sampleInitialCapital = 1000000;
+            const sampleJournal = { id: 'sample_journal_2', name: 'Working Test Strategy', initialCapital: sampleInitialCapital, createdAt: new Date().toISOString() };
+            const sampleTrades = generateSampleTrades(150, sampleInitialCapital);
+            const testUserData = {
+                userInfo: { 
+                    name: 'Test User (Active)', 
+                    plan: 'yearly', 
+                    expiryDate: new Date().getTime() + 365 * 24 * 60 * 60 * 1000 
+                },
+                journals: [sampleJournal],
+                trades: { 'sample_journal_2': sampleTrades }
+            };
+            setAllData(testUserData);
+            setIsLoading(false);
+            return;
+        }
+
         if (!db || !loggedInCode) {
-            if(!loggedInCode) setAllData({ journals: [], trades: {} }); // Reset data on logout
+            if(!loggedInCode) setAllData(null); // Reset data on logout
             return;
         };
+        
         // This onSnapshot listener is the core of the real-time functionality.
         // It automatically fires whenever the data for this user changes in the cloud.
         const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, loggedInCode);
@@ -902,10 +1202,16 @@ const App = () => {
 
     // This function sends the updated data to the cloud.
     const updateData = async (newData) => {
+        // For the test user, only update the local state
+        if (loggedInCode === '0000000000' || loggedInCode === '1111111111') {
+            setAllData(newData);
+            showSuccessNotification("Data updated in test session.");
+            return;
+        }
         if (!db || !loggedInCode) return;
         const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, loggedInCode);
         try {
-            // setDoc with merge:true updates the document without overwriting existing fields.
+            // setDoc saves or overwrites data in the specified document.
             await setDoc(docRef, newData, { merge: true });
         } catch (error) {
             console.error("Error saving data to Firestore:", error);
@@ -913,7 +1219,15 @@ const App = () => {
         }
     };
     
-    const handleLogin = async (code) => {
+    const handleLogin = async (code, password) => {
+        // Handle static test user logins
+        if ((code === '0000000000' || code === '1111111111') && password === 'test') {
+            localStorage.setItem(SESSION_KEY, code);
+            setLoggedInCode(code);
+            setView('dashboard');
+            return;
+        }
+
         if (!db) {
             setModal({ isOpen: true, type: 'alert', message: 'Database connection not available. Please refresh and try again.' });
             return;
@@ -922,15 +1236,20 @@ const App = () => {
         try {
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
-                localStorage.setItem(SESSION_KEY, code);
-                setLoggedInCode(code);
-                setView('dashboard');
+                const data = docSnap.data();
+                if (data.userInfo.password === password) {
+                    localStorage.setItem(SESSION_KEY, code);
+                    setLoggedInCode(code);
+                    setView('dashboard');
+                } else {
+                    setModal({ isOpen: true, type: 'alert', message: 'Invalid password.' });
+                }
             } else {
                 setModal({ isOpen: true, type: 'alert', message: 'Invalid Access Code.' });
             }
         } catch (error) {
             console.error("Login error:", error);
-            setModal({ isOpen: true, type: 'alert', message: 'Could not verify access code. Please try again.' });
+            setModal({ isOpen: true, type: 'alert', message: 'Could not verify credentials. Please try again.' });
         }
     };
 
@@ -946,15 +1265,68 @@ const App = () => {
         setTimeout(() => setNotification({ show: false, message: '' }), 3000);
     };
 
-    const handlePlanActivation = async () => {
+    const handlePlanActivation = async (planType, amountInPaise) => {
+        if (RAZORPAY_KEY_ID === 'YOUR_KEY_ID_HERE' || !window.Razorpay) {
+            setModal({isOpen: true, type: 'alert', message: 'Payment gateway is not configured. Please contact the administrator.'});
+            return;
+        }
+        
         setIsLoading(true);
-        const { accessCode } = registrationDetails;
-        const initialData = { userInfo: { createdAt: new Date().toISOString() }, journals: [], trades: {} };
-        const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, accessCode);
-        await setDoc(docRef, initialData);
-        await handleLogin(accessCode);
-        showSuccessNotification('Plan Activated!');
-        setIsLoading(false);
+
+        const options = {
+            key: RAZORPAY_KEY_ID,
+            amount: amountInPaise,
+            currency: "INR",
+            name: "Pro Trader Journal",
+            description: `Activate ${planType} Plan`,
+            handler: async (response) => {
+                const { accessCode, password } = registrationDetails;
+                const days = planType === 'monthly' ? 30 : 365;
+                const expiryDate = new Date().getTime() + days * 24 * 60 * 60 * 1000;
+
+                const initialData = { 
+                    userInfo: { 
+                        password: password,
+                        createdAt: new Date().toISOString(),
+                        plan: planType,
+                        paymentId: response.razorpay_payment_id,
+                        expiryDate: expiryDate
+                    }, 
+                    journals: [], 
+                    trades: {} 
+                };
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, accessCode);
+                await setDoc(docRef, initialData);
+                
+                showSuccessNotification('Payment Successful! Account Activated.');
+                await handleLogin(accessCode, password);
+                setIsLoading(false);
+            },
+            prefill: {
+                name: "New Trader",
+                email: "trader@example.com",
+                contact: "9999999999"
+            },
+            notes: {
+                accessCode: registrationDetails.accessCode
+            },
+            theme: {
+                color: "#14b8a6"
+            },
+            modal: {
+                ondismiss: () => {
+                    setIsLoading(false);
+                    setModal({isOpen: true, type: 'alert', message: 'Payment was cancelled.'});
+                }
+            }
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.on('payment.failed', function (response){
+            setModal({isOpen: true, type: 'alert', message: `Payment failed: ${response.error.description}`});
+            setIsLoading(false);
+        });
+        rzp.open();
     };
 
     const handleModalClose = () => setModal({ isOpen: false });
@@ -962,8 +1334,8 @@ const App = () => {
     const renderView = () => {
         switch(view) {
             case 'register': return <RegisterScreen setView={setView} setRegistrationDetails={setRegistrationDetails} db={db} setModal={setModal} />;
-            case 'plans': return <PlansScreen registrationDetails={registrationDetails} handlePlanActivation={handlePlanActivation} />;
-            case 'dashboard': return <Dashboard allData={allData} updateData={updateData} userId={loggedInCode} onLogout={handleLogout} modal={modal} setModal={setModal} db={db} />;
+            case 'plans': return <PlansScreen handlePlanActivation={handlePlanActivation} setModal={setModal} />;
+            case 'dashboard': return <Dashboard allData={allData} updateData={updateData} userId={loggedInCode} onLogout={handleLogout} modal={modal} setModal={setModal} db={db} setView={setView} />;
             case 'login': default: return <LoginScreen onLogin={handleLogin} setModal={setModal} setView={setView} db={db} />;
         }
     };
@@ -978,7 +1350,7 @@ const App = () => {
             case 'createJournal':
                 return (<form onSubmit={modal.onConfirm}><h3 className="text-xl font-bold text-teal-400 mb-4">Create New Journal</h3><div className="space-y-4 text-left"><input type="text" name="name" placeholder="Journal Name" defaultValue={modal.defaultValues?.name} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /><input type="number" name="initialCapital" placeholder="Initial Capital (₹)" defaultValue={modal.defaultValues?.initialCapital} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /></div><div className="flex justify-center gap-4 mt-6"><button type="submit" className="px-6 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600">Create</button><button type="button" onClick={handleModalClose} className="px-6 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-gray-700">Cancel</button></div></form>);
             case 'editTrade':
-                return (<form onSubmit={modal.onConfirm}><h3 className="text-xl font-bold text-teal-400 mb-4">Edit Trade</h3><div className="space-y-4 text-left"><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Date</label><input type="date" name="date" defaultValue={modal.defaultValues?.date} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Gross P&L (₹)</label><input type="number" step="0.01" name="grossPnl" defaultValue={modal.defaultValues?.grossPnl} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Charges (₹)</label><input type="number" step="0.01" name="taxesAndCharges" defaultValue={modal.defaultValues?.taxesAndCharges} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Capital (₹)</label><input type="number" step="1" name="capitalDeployed" defaultValue={modal.defaultValues?.capitalDeployed} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Notes</label><textarea name="notes" defaultValue={modal.defaultValues?.notes} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" rows="2"></textarea></div></div><div className="flex justify-center gap-4 mt-6"><button type="submit" className="px-6 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600">Save</button><button type="button" onClick={handleModalClose} className="px-6 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-gray-700">Cancel</button></div></form>);
+                return (<form onSubmit={modal.onConfirm}><h3 className="text-xl font-bold text-teal-400 mb-4">Edit Record</h3><div className="space-y-4 text-left"><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Date</label><input type="date" name="date" defaultValue={modal.defaultValues?.date} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Gross P&L (₹)</label><input type="number" step="0.01" name="grossPnl" defaultValue={modal.defaultValues?.grossPnl} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Charges (₹)</label><input type="number" step="0.01" name="taxesAndCharges" defaultValue={modal.defaultValues?.taxesAndCharges} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Capital (₹)</label><input type="number" step="1" name="capitalDeployed" defaultValue={modal.defaultValues?.capitalDeployed} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Notes</label><textarea name="notes" defaultValue={modal.defaultValues?.notes} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" rows="2"></textarea></div></div><div className="flex justify-center gap-4 mt-6"><button type="submit" className="px-6 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600">Save</button><button type="button" onClick={handleModalClose} className="px-6 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-gray-700">Cancel</button></div></form>);
             default: // alert and confirm
                 return (<><p className="text-lg text-gray-100 mb-6">{modal.message}</p><div className="flex justify-center gap-4"><button onClick={() => { if(modal.onConfirm) modal.onConfirm(); else handleModalClose(); }} className="px-6 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600">OK</button>{modal.type === 'confirm' && <button onClick={handleModalClose} className="px-6 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-gray-700">Cancel</button>}</div></>);
         }
@@ -990,10 +1362,35 @@ const App = () => {
 
     return (
         <>
-            <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'); body { font-family: 'Inter', sans-serif; } .animate-fade-in-out { animation: fadeInOut 3s forwards; } @keyframes fadeInOut { 0% { opacity: 0; transform: translateY(-20px); } 10% { opacity: 1; transform: translateY(0); } 90% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-20px); } }`}</style>
+            <style>{`
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+                body { font-family: 'Inter', sans-serif; }
+                .animate-fade-in-out { animation: fadeInOut 3s forwards; }
+                @keyframes fadeInOut {
+                    0% { opacity: 0; transform: translateY(-20px); }
+                    10% { opacity: 1; transform: translateY(0); }
+                    90% { opacity: 1; transform: translateY(0); }
+                    100% { opacity: 0; transform: translateY(-20px); }
+                }
+                .animate-scroll-up { animation: scroll-up 12.5s infinite; }
+                @keyframes scroll-up {
+                    0%, 8% { transform: translateY(0); }
+                    10%, 28% { transform: translateY(-16.66%); }
+                    30%, 48% { transform: translateY(-33.33%); }
+                    50%, 68% { transform: translateY(-50%); }
+                    70%, 88% { transform: translateY(-66.66%); }
+                    90%, 100% { transform: translateY(-83.33%); }
+                }
+            `}</style>
             <div className="min-h-screen bg-gray-950">
                 <Notification show={notification.show} message={notification.message} />
-                {modal.isOpen && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4"><div className="bg-gray-800 border border-teal-700 rounded-xl p-6 w-full max-w-md text-center shadow-2xl">{renderModalContent()}</div></div>)}
+                {modal.isOpen && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+                        <div className="bg-gray-800 border border-teal-700 rounded-xl p-6 w-full max-w-md text-center shadow-2xl">
+                            {renderModalContent()}
+                        </div>
+                    </div>
+                )}
                 {renderView()}
             </div>
         </>
