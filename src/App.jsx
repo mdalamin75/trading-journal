@@ -20,15 +20,15 @@ const RAZORPAY_KEY_ID = 'rzp_live_pWNLoIsX4fvAzA';
 
 // --- FIREBASE CONFIG (placeholders, will be handled by environment) ---
 const firebaseConfig = {
-      apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-      appId: import.meta.env.VITE_FIREBASE_APP_ID
-    };
-    
-    const appId = import.meta.env.VITE_APP_ID || 'pro-trader-journal';
+	apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+	authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+	projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+	storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+	messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+	appId: import.meta.env.VITE_FIREBASE_APP_ID,
+};
+
+const appId = import.meta.env.VITE_APP_ID || "pro-trader-journal";
 
 
 // --- HELPER FUNCTIONS ---
@@ -1447,7 +1447,7 @@ const App = () => {
     };
 
     const handlePlanActivation = async (planType, amountInPaise) => {
-        if (RAZORPAY_KEY_ID === 'rzp_live_pWNLoIsX4fvAzA' || !window.Razorpay) {
+        if (RAZORPAY_KEY_ID === 'YOUR_KEY_ID_HERE' || !window.Razorpay) {
             setModal({isOpen: true, type: 'alert', message: 'Payment gateway is not configured. Please contact the administrator.'});
             return;
         }
