@@ -12,31 +12,40 @@ const DAY_NAME_MAPPING = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'
 const TRADES_PER_PAGE = 20;
 const SESSION_KEY = 'proTraderAccessCode';
 const DB_COLLECTION_NAME = 'pro_trader_journals';
+const XPONENTIAL_LOGO_BASE64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAADMElEQVR4nOzVwQnAMAwEwe9/6G6gBTuI4Sg7Njpb2+d5/g4gwI8CBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAL8B+ALAwAQi3gAAAABJRU5ErkJggg==";
 
 // --- IMPORTANT: PLACE YOUR RAZORPAY KEY ID HERE ---
 // Replace 'YOUR_KEY_ID_HERE' with your actual Razorpay Key ID to enable payments.
-const RAZORPAY_KEY_ID = 'YOUR_KEY_ID_HERE';
+const RAZORPAY_KEY_ID = 'rzp_live_pWNLoIsX4fvAzA';
 
 // --- FIREBASE CONFIG (placeholders, will be handled by environment) ---
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
-};
-
-const appId = import.meta.env.VITE_APP_ID || 'pro-trader-journal';
+      apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+      appId: import.meta.env.VITE_FIREBASE_APP_ID
+    };
+    
+    const appId = import.meta.env.VITE_APP_ID || 'pro-trader-journal';
 
 
 // --- HELPER FUNCTIONS ---
 const formatCurrencyPrecise = (value) => `₹${(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const formatCurrencyCompact = (value) => {
-    const num = value || 0;
-    if (Math.abs(num) >= 10000000) return `₹${(num / 10000000).toFixed(2)}Cr`;
-    if (Math.abs(num) >= 100000) return `₹${(num / 100000).toFixed(2)}L`;
-    return `₹${num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const num = Number(value) || 0;
+    const sign = num < 0 ? "-" : "";
+    const absNum = Math.abs(num);
+
+    if (absNum >= 10000000) { // 1 Crore+
+        return `${sign}₹${(absNum / 10000000).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}Cr`;
+    }
+    if (absNum >= 100000) { // 1 Lakh+
+        return `${sign}₹${(absNum / 100000).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}L`;
+    }
+    // Below 1 Lakh
+    return `₹${num.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 };
 const formatPercentage = (value) => `${(value || 0).toFixed(2)}%`;
 const formatDateForAxis = (tickItem) => {
@@ -157,6 +166,7 @@ const calculateAnalytics = (currentTrades, journalInitialCapital = 0) => {
       runningEquity = equityStartOfDay + currentTrade.netPnl;
       
       // Peak equity is the highest point the equity has reached so far.
+      // This logic correctly handles initial losses by keeping the peak at the starting capital until a new high is made.
       peakEquity = Math.max(peakEquity, equityStartOfDay, runningEquity);
       const drawdown = peakEquity - runningEquity;
       maxDrawdownValue = Math.max(maxDrawdownValue, drawdown);
@@ -229,11 +239,19 @@ const calculateAnalytics = (currentTrades, journalInitialCapital = 0) => {
 
 // --- UI COMPONENTS ---
 const MemoizedMetricCard = memo(({ title, value, colorClass = 'text-gray-200' }) => (
-  <div className="bg-gray-800/50 p-4 rounded-lg text-center transition-all duration-300 ease-in-out hover:bg-gray-700/50 transform hover:-translate-y-1 hover:shadow-lg hover:shadow-teal-500/20">
-    <h3 className="text-sm text-gray-400 mb-1">{title}</h3>
-    <p className={`text-xl lg:text-2xl font-bold ${colorClass}`}>{value}</p>
+  <div className="bg-gray-800/50 p-4 rounded-lg text-center transition-all duration-300 ease-in-out hover:bg-gray-700/50 transform hover:-translate-y-1.5 hover:shadow-xl hover:shadow-teal-500/20">
+    <h3 className="text-sm text-gray-400 mb-1 transition-colors">{title}</h3>
+    <p className={`text-xl lg:text-2xl font-bold transition-colors ${colorClass}`}>{value}</p>
   </div>
 ));
+
+const BackButton = ({ onClick }) => (
+    <button onClick={onClick} className="absolute top-4 left-4 z-20 p-2 bg-gray-800/50 rounded-full text-teal-400 hover:bg-gray-700/50 transition-all transform hover:scale-110">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+    </button>
+);
 
 const LoginScreen = ({ onLogin, setModal, setView, db }) => {
     const [code, setCode] = useState('');
@@ -254,18 +272,15 @@ const LoginScreen = ({ onLogin, setModal, setView, db }) => {
 
     return (
         <div className="min-h-screen bg-gray-950 flex flex-col justify-center items-center p-4 text-gray-100 font-sans overflow-y-auto">
-            {/* Background Grid and Glow Effect */}
             <div className="absolute inset-0 -z-10 h-full w-full bg-gray-950 bg-[radial-gradient(#14b8a6_1px,transparent_1px)] [background-size:16px_16px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)]"></div>
             
-            <div className="w-full max-w-4xl mx-auto text-center flex flex-col items-center space-y-12">
-                {/* Clean, header-less title section matching the reference image style */}
-                <h1 className="text-4xl sm:text-5xl font-bold text-teal-400 tracking-wider whitespace-nowrap">
+            <div className="w-full max-w-4xl mx-auto text-center flex flex-col items-center space-y-8 sm:space-y-12">
+                <h1 className="text-3xl sm:text-5xl font-bold text-teal-400 tracking-wider whitespace-nowrap">
                     PRO TRADER JOURNAL
                 </h1>
 
-                {/* Scrolling text effect, properly sized to prevent clipping */}
-                <div className="text-2xl md:text-4xl font-bold flex items-center justify-center flex-wrap">
-                    <span className="text-gray-200 mr-3">Become a</span>
+                <div className="text-xl sm:text-2xl md:text-4xl font-bold flex items-center justify-center flex-wrap">
+                    <span className="text-gray-200 mr-2 sm:mr-3">Become a</span>
                     <div className="h-[1.2em] overflow-hidden">
                         <ul className="animate-scroll-up leading-tight">
                             <li className="text-teal-400 h-[1.2em] flex items-center justify-center">Systematic</li>
@@ -276,36 +291,21 @@ const LoginScreen = ({ onLogin, setModal, setView, db }) => {
                             <li className="text-teal-400 h-[1.2em] flex items-center justify-center">Systematic</li>
                         </ul>
                     </div>
-                    <span className="text-gray-200 ml-3">Trader</span>
+                    <span className="text-gray-200 ml-2 sm:ml-3">Trader</span>
                 </div>
 
-                {/* Login Form */}
-                <div className="bg-gray-900/50 backdrop-blur-sm border border-teal-800/50 rounded-2xl shadow-2xl p-8 w-full max-w-md">
+                <div className="bg-gray-900/50 backdrop-blur-sm border border-teal-800/50 rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-md">
                     <h2 className="text-xl font-bold text-center text-teal-400 mb-6">Login to Your Journal</h2>
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <input 
-                            type="text" 
-                            placeholder="Access Code" 
-                            value={code} 
-                            onChange={(e) => setCode(e.target.value)} 
-                            className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-center tracking-widest focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" 
-                            required 
-                        />
-                        <input 
-                            type="password" 
-                            placeholder="Password" 
-                            value={password} 
-                            onChange={(e) => setPassword(e.target.value)} 
-                            className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-center tracking-widest focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" 
-                            required 
-                        />
-                        <button type="submit" disabled={isLoading} className="w-full p-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition disabled:bg-gray-500">
-                            {isLoading ? 'Verifying...' : 'Login'}
+                        <input type="text" placeholder="Access Code" value={code} onChange={(e) => setCode(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-center tracking-widest focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required />
+                        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-center tracking-widest focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required />
+                        <button type="submit" disabled={isLoading} className="w-full p-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-all transform hover:scale-105 disabled:bg-gray-500 disabled:scale-100">
+                            {isLoading ? <span className="animate-pulse">Verifying...</span> : 'Login'}
                         </button>
                     </form>
                     <p className="text-center text-gray-400 mt-6">
                         Don't have an account?{' '}
-                        <button onClick={() => setView('register')} className="font-semibold text-teal-400 hover:text-teal-300">
+                        <button onClick={() => setView('register')} className="font-semibold text-teal-400 hover:text-teal-300 transition-colors">
                             Register Here
                         </button>
                     </p>
@@ -315,7 +315,7 @@ const LoginScreen = ({ onLogin, setModal, setView, db }) => {
     );
 };
 
-const RegisterScreen = ({ setView, setRegistrationDetails, db, setModal }) => {
+const RegisterScreen = ({ setView, setRegistrationDetails, db, setModal, goBack }) => {
     const [accessCode, setAccessCode] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -370,23 +370,24 @@ const RegisterScreen = ({ setView, setRegistrationDetails, db, setModal }) => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-950 flex flex-col justify-center items-center p-4 text-gray-100 font-sans">
+        <div className="min-h-screen bg-gray-950 flex flex-col justify-center items-center p-4 text-gray-100 font-sans relative">
+            <BackButton onClick={goBack} />
             <div className="w-full max-w-md">
                  <header className="text-center mb-8">
                     <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-500 tracking-wide">Create Your Account</h1>
                 </header>
                 <div className="bg-gray-900 border border-teal-800/50 rounded-2xl shadow-2xl p-8">
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <input type="tel" pattern="[0-9]*" placeholder="Desired Access Code (5+ digits)" value={accessCode} onChange={e => setAccessCode(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white" required />
-                        <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white" required />
-                        <input type="password" placeholder="Confirm Password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white" required />
-                        <button type="submit" disabled={isLoading} className="w-full p-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition disabled:bg-gray-500">
-                            {isLoading ? 'Checking...' : 'Proceed to Plans'}
+                        <input type="tel" pattern="[0-9]*" placeholder="Desired Access Code (5+ digits)" value={accessCode} onChange={e => setAccessCode(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required />
+                        <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required />
+                        <input type="password" placeholder="Confirm Password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required />
+                        <button type="submit" disabled={isLoading} className="w-full p-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-all transform hover:scale-105 disabled:bg-gray-500 disabled:scale-100">
+                            {isLoading ? <span className="animate-pulse">Checking...</span> : 'Proceed to Plans'}
                         </button>
                     </form>
                      <p className="text-center text-gray-400 mt-6">
                         Already have an account?{' '}
-                        <button onClick={() => setView('login')} className="font-semibold text-teal-400 hover:text-teal-300">
+                        <button onClick={() => setView('login')} className="font-semibold text-teal-400 hover:text-teal-300 transition-colors">
                             Login
                         </button>
                     </p>
@@ -396,7 +397,7 @@ const RegisterScreen = ({ setView, setRegistrationDetails, db, setModal }) => {
     );
 };
 
-const PlansScreen = ({ handlePlanActivation, setModal }) => {
+const PlansScreen = ({ handlePlanActivation, setModal, goBack }) => {
     const [showPreview, setShowPreview] = useState(false);
 
     const sampleData = useMemo(() => {
@@ -410,7 +411,7 @@ const PlansScreen = ({ handlePlanActivation, setModal }) => {
         };
     }, []);
 
-    const Icon = ({ path }) => <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d={path} /></svg>;
+    const Icon = memo(({ path }) => <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d={path} /></svg>);
 
     const featureSections = {
         "Core Account Metrics": [
@@ -448,7 +449,8 @@ const PlansScreen = ({ handlePlanActivation, setModal }) => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-950 text-gray-100 font-sans p-4 sm:p-6 lg:p-8 overflow-x-hidden">
+        <div className="min-h-screen bg-gray-950 text-gray-100 font-sans p-4 sm:p-6 lg:p-8 overflow-x-hidden relative">
+            <BackButton onClick={goBack} />
             <style>{`
                 .bg-grid {
                     background-image: linear-gradient(to right, rgba(20, 184, 166, 0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(20, 184, 166, 0.1) 1px, transparent 1px);
@@ -703,6 +705,80 @@ const PerformanceCalendar = memo(({ dailyPnlData, onDayClick }) => {
     );
 });
 
+const ShareablePerformanceCard = React.forwardRef(({ userName, todaysPerformance, thisMonthsPerformance, capitalMetrics }, ref) => {
+    const formatCurrencyNoDecimals = (value) => `₹${(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+
+    // Component for displaying P&L stats.
+    const PnlStat = ({ label, pnl, roi }) => {
+        const isProfit = pnl >= 0;
+        const colorClass = isProfit ? 'text-emerald-400' : 'text-red-500';
+        const bgColorClass = isProfit ? 'bg-emerald-900/50' : 'bg-red-900/50';
+        
+        return (
+            <div className={`p-4 rounded-xl ${bgColorClass} border border-gray-700/50 flex flex-col`}>
+                <p className="text-sm text-gray-400 font-medium mb-2">{label}</p>
+                <div className="flex-grow" /> {/* This spacer will push content down */}
+                <div>
+                    <p className={`text-2xl font-bold leading-tight ${colorClass}`}>{formatCurrencyNoDecimals(pnl)}</p>
+                    <div className={`flex items-center text-sm font-semibold ${colorClass} mt-1 gap-1`}>
+                        <span>{formatPercentage(roi)} ROI</span>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    // Component for displaying Capital stats.
+    const CapitalStat = ({ label, value }) => (
+        <div className="p-4 rounded-xl bg-cyan-900/50 border border-gray-700/50 flex flex-col">
+            <p className="text-sm text-gray-400 font-medium mb-2">{label}</p>
+            <div className="flex-grow" /> {/* This spacer will push content down */}
+            <div>
+                <p className="text-2xl font-bold leading-tight text-cyan-400">{formatCurrencyNoDecimals(value)}</p>
+                {/* This invisible placeholder has the same structure as the ROI line for alignment */}
+                <div className="flex items-center text-sm font-semibold mt-1 invisible">
+                    <span className="ml-1">Placeholder</span>
+                </div>
+            </div>
+        </div>
+    );
+
+    return (
+        <div ref={ref} className="bg-gradient-to-br from-gray-900 to-black text-white p-6 rounded-2xl w-[480px] font-sans border border-teal-700/30 shadow-2xl shadow-teal-500/10 overflow-hidden relative">
+            <div className="absolute -top-20 -right-20 w-60 h-60 bg-teal-500/10 rounded-full filter blur-3xl"></div>
+            <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-violet-500/10 rounded-full filter blur-3xl"></div>
+
+            <div className="relative z-10">
+                <header className="flex justify-between items-start pb-4 border-b border-gray-700/50">
+                    <div>
+                        <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-400">
+                            Performance Snapshot
+                        </h2>
+                    </div>
+                    <div className="text-right">
+                        <p className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-gray-200 to-gray-400">PRO TRADER JOURNAL</p>
+                        <p className="text-xs text-teal-400/70 tracking-widest">www.xponential.me</p>
+                    </div>
+                </header>
+
+                <main className="my-6">
+                    <div className="grid grid-cols-2 gap-4">
+                        <PnlStat label="Today's P&L" pnl={todaysPerformance.pnl} roi={todaysPerformance.roi} />
+                        <CapitalStat label="Capital Deployed Today" value={capitalMetrics.todaysCapital} />
+                        <PnlStat label="This Month's P&L" pnl={thisMonthsPerformance.pnl} roi={thisMonthsPerformance.roi} />
+                        <CapitalStat label="Avg Capital This Month" value={capitalMetrics.thisMonthsAvgCapital} />
+                    </div>
+                </main>
+                
+                <footer className="text-center mt-4 border-t border-gray-700/50 pt-3">
+                    <p className="text-xs text-gray-500">Track your journey to profitability. Generated by Pro Trader Journal.</p>
+                </footer>
+            </div>
+        </div>
+    );
+});
+
+
 const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db, setView, isPreview = false }) => {
     // --- STATE MANAGEMENT ---
     const [selectedJournalId, setSelectedJournalId] = useState('');
@@ -717,6 +793,7 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
     const [highlightedDate, setHighlightedDate] = useState(null);
     const [windowWidth, setWindowWidth] = useState(window.innerWidth);
     const [isExpired, setIsExpired] = useState(false);
+    const shareCardRef = React.useRef();
 
     const currentUserData = useMemo(() => allData || { journals: [], trades: {} }, [allData]);
     const journals = currentUserData.journals || [];
@@ -726,12 +803,12 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
 
     // --- Subscription Check ---
     useEffect(() => {
-        if (userInfo && userInfo.expiryDate) {
+        if (userInfo && userInfo.expiryDate && !isPreview) {
             if (new Date().getTime() > userInfo.expiryDate) {
                 setIsExpired(true);
             }
         }
-    }, [userInfo]);
+    }, [userInfo, isPreview]);
 
     // --- Responsive handler ---
     useEffect(() => {
@@ -765,6 +842,49 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
         const initialCapital = selectedJournal ? parseFloat(selectedJournal.initialCapital) : 0;
         return calculateAnalytics(trades, initialCapital);
     }, [trades, selectedJournal]);
+    
+    const { todaysPerformance, thisMonthsPerformance, capitalMetrics } = useMemo(() => {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const todayData = summary.dailyPnlData.find(d => d.date === todayStr);
+        let todaysPnl = 0;
+        let todaysRoi = 0;
+        let todaysCapital = 0;
+        if(todayData) {
+            todaysPnl = todayData.pnl;
+            todaysCapital = todayData.capital;
+            if(todayData.capital > 0) {
+                todaysRoi = (todayData.pnl / todayData.capital) * 100;
+            }
+        }
+
+        const currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
+        
+        const thisMonthTrades = summary.dailyPnlData.filter(d => {
+            const date = new Date(d.date);
+            return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+        });
+
+        let monthsPnl = 0;
+        let monthsRoi = 0;
+        let thisMonthsAvgCapital = 0;
+        if(thisMonthTrades.length > 0) {
+            monthsPnl = thisMonthTrades.reduce((sum, day) => sum + day.pnl, 0);
+            const totalCapital = thisMonthTrades.reduce((sum, day) => sum + day.capital, 0);
+            thisMonthsAvgCapital = totalCapital / thisMonthTrades.length;
+            
+            if(thisMonthsAvgCapital > 0) {
+                monthsRoi = (monthsPnl / thisMonthsAvgCapital) * 100;
+            }
+        }
+        
+        return {
+            todaysPerformance: { pnl: todaysPnl, roi: todaysRoi },
+            thisMonthsPerformance: { pnl: monthsPnl, roi: monthsRoi },
+            capitalMetrics: { todaysCapital, thisMonthsAvgCapital }
+        };
+    }, [summary]);
+
     const sortedTradesForDisplay = useMemo(() => [...trades].sort((a,b) => new Date(b.date) - new Date(a.date)), [trades]);
     
     // --- Dynamic chart interval for mobile readability ---
@@ -906,6 +1026,34 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
             }
         });
     };
+    
+    const handleSharePerformance = async () => {
+        if (isPreview) { handlePreviewClick(); return; }
+        if (!window.html2canvas) {
+            setModal({ isOpen: true, type: 'alert', message: 'Sharing library not loaded. Please try again in a moment.' });
+            return;
+        }
+        setIsLoading(true);
+        try {
+            const canvas = await window.html2canvas(shareCardRef.current, {
+                backgroundColor: null, // Use transparent background
+                useCORS: true
+            });
+            const imageUrl = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.href = imageUrl;
+            link.download = `${selectedJournal.name.replace(/\s+/g, '_')}_performance.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+        } catch (error) {
+            console.error("Error generating share image:", error);
+            setModal({ isOpen: true, type: 'alert', message: 'Could not generate shareable image.' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleExportCSV = () => {
         if (isPreview) { handlePreviewClick(); return; }
@@ -921,7 +1069,7 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.setAttribute('download', `${selectedJournal.name.replace(/\s+/g, '_')}_export.csv`);
+        link.setAttribute('download', `${selectedJournal.name.replace(/\s+/g, '_')}_performance.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -954,7 +1102,7 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
         }
     };
     
-    const Icon = ({ path, className = "h-6 w-6" }) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d={path} /></svg>;
+    const Icon = memo(({ path, className = "h-6 w-6" }) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d={path} /></svg>);
 
     const ExpiryOverlay = () => (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex flex-col justify-center items-center z-50 p-4 text-center">
@@ -968,28 +1116,36 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
 
     // --- RENDER ---
     return (
-        <div className="container mx-auto max-w-7xl p-4 md:p-6 rounded-2xl shadow-[0_0_60px_-15px_rgba(20,184,166,0.2)] bg-gray-900 border border-teal-800/50 text-gray-100 font-sans">
+        <div className="container mx-auto max-w-7xl p-2 sm:p-4 md:p-6 rounded-2xl shadow-[0_0_60px_-15px_rgba(20,184,166,0.2)] bg-gray-900 border border-teal-800/50 text-gray-100 font-sans">
             {isExpired && <ExpiryOverlay />}
+            
+            {/* Hidden card for screenshotting */}
+            <div className="absolute -left-[9999px] top-auto">
+                <ShareablePerformanceCard 
+                    ref={shareCardRef}
+                    userName={userName}
+                    todaysPerformance={todaysPerformance}
+                    thisMonthsPerformance={thisMonthsPerformance}
+                    capitalMetrics={capitalMetrics}
+                />
+            </div>
+
             <header className="text-center mb-10 relative">
                 <h1 className="text-2xl sm:text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-500 tracking-wide">PRO TRADER JOURNAL</h1>
-                <div className="flex flex-col sm:flex-row justify-center items-center gap-x-4 mt-2">
-                    {userName && userName !== 'Test User' && <p className="text-teal-400/80 text-xs sm:text-sm md:text-base tracking-widest">Welcome, {userName}!</p>}
-                    {userInfo?.expiryDate && <p className="text-amber-400/80 text-xs sm:text-sm">Plan expires on: {new Date(userInfo.expiryDate).toLocaleDateString()}</p>}
-                </div>
-                <button onClick={isPreview ? handlePreviewClick : onLogout} className={`absolute top-1/2 -translate-y-1/2 right-0 px-2 py-1 text-xs sm:text-sm sm:px-4 sm:py-2 bg-red-600/80 text-white font-bold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-red-500 transition-all duration-300 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>Logout</button>
+                <button onClick={isPreview ? handlePreviewClick : onLogout} className={`absolute top-0 right-0 px-2 py-1 text-xs sm:text-sm sm:px-4 sm:py-2 bg-red-600/80 text-white font-bold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-red-500 transition-all duration-300 transform hover:scale-105 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>Logout</button>
             </header>
 
             <div className="bg-gray-800/40 p-4 rounded-xl shadow-lg border border-gray-700/70 mb-10 flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div className="flex items-center gap-3 w-full sm:w-auto">
                     <label htmlFor="journal-select" className="text-lg font-bold text-teal-400">Journal:</label>
-                    <select id="journal-select" value={selectedJournalId} onChange={(e) => setSelectedJournalId(e.target.value)} className="p-2 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition w-full sm:w-64">
+                    <select id="journal-select" value={selectedJournalId} onChange={(e) => setSelectedJournalId(e.target.value)} className="p-2 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all w-full sm:w-64">
                         {journals.map(j => <option key={j.id} value={j.id}>{j.name}</option>)}
                     </select>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                    <button onClick={() => setModal({ isOpen: true, type: 'createJournal', onConfirm: handleCreateJournal })} className={`w-full sm:w-auto px-4 py-2 bg-teal-500 text-white font-bold rounded-lg shadow-md hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-teal-500 transition-all duration-300 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}> + New Journal </button>
+                    <button onClick={() => setModal({ isOpen: true, type: 'createJournal', onConfirm: handleCreateJournal })} className={`w-full sm:w-auto px-4 py-2 bg-teal-500 text-white font-bold rounded-lg shadow-md hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-teal-500 transition-all duration-300 transform hover:scale-105 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}> + New Journal </button>
                     {selectedJournal && (
-                        <button onClick={handleDeleteJournal} className={`w-full sm:w-auto px-4 py-2 bg-red-600/80 text-white font-bold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-red-500 transition-all duration-300 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>Delete Journal</button>
+                        <button onClick={handleDeleteJournal} className={`w-full sm:w-auto px-4 py-2 bg-red-600/80 text-white font-bold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-red-500 transition-all duration-300 transform hover:scale-105 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>Delete Journal</button>
                     )}
                 </div>
             </div>
@@ -998,7 +1154,7 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
                 <div className="text-center p-10 bg-gray-800/30 rounded-lg">
                     <h2 className="text-2xl font-bold text-teal-400">Welcome!</h2>
                     <p className="text-gray-300 mt-2 mb-4">Create your first journal to start tracking your daily records.</p>
-                    <button onClick={() => setModal({ isOpen: true, type: 'createJournal', onConfirm: handleCreateJournal })} className={`px-6 py-3 bg-teal-500 text-white font-bold rounded-lg shadow-md hover:bg-teal-600 transition-all duration-300 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>+ Create First Journal</button>
+                    <button onClick={() => setModal({ isOpen: true, type: 'createJournal', onConfirm: handleCreateJournal })} className={`px-6 py-3 bg-teal-500 text-white font-bold rounded-lg shadow-md hover:bg-teal-600 transition-all duration-300 transform hover:scale-105 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>+ Create First Journal</button>
                 </div>
             )}
 
@@ -1006,7 +1162,7 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
             <>
                 {/* Metric Cards Sections */}
                 <div className="mb-10"><h2 className="flex items-center gap-3 text-2xl font-bold text-teal-400 mb-4"><Icon path="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />Account Overview</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><MemoizedMetricCard title="Current Equity" value={formatCurrencyCompact(summary.currentEquity)} colorClass={summary.currentEquity >= summary.startingCapital ? 'text-green-400' : 'text-red-400'} /><MemoizedMetricCard title="Overall P&L" value={formatCurrencyCompact(summary.overallPnl)} colorClass={summary.overallPnl >= 0 ? 'text-green-400' : 'text-red-400'} /><MemoizedMetricCard title="Average Capital" value={formatCurrencyCompact(summary.averageCapital)} /><MemoizedMetricCard title="Return on Investment" value={formatPercentage(summary.roi)} colorClass={summary.roi >= 0 ? 'text-green-400' : 'text-red-400'} /></div></div>
-                <div className="mb-10"><h2 className="flex items-center gap-3 text-2xl font-bold text-teal-400 mb-4"><Icon path="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />Performance Metrics</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><MemoizedMetricCard title="Win Rate" value={formatPercentage(summary.winRate)} colorClass="text-green-400" /><MemoizedMetricCard title="Profit Factor" value={(summary.profitFactor || 0).toFixed(2)} colorClass="text-cyan-400" /><MemoizedMetricCard title="Win/Loss Ratio" value={(summary.winLossRatio || 0).toFixed(2)} colorClass="text-cyan-400" /><MemoizedMetricCard title="Expectancy" value={formatCurrencyCompact(summary.expectancy)} colorClass={(summary.expectancy || 0) >= 0 ? 'text-green-400' : 'text-red-400'} /><MemoizedMetricCard title="Avg. Win" value={formatCurrencyCompact(summary.avgProfitOnWinDays)} colorClass="text-green-400" /><MemoizedMetricCard title="Avg. Loss" value={formatCurrencyCompact(summary.avgLossOnLossDays)} colorClass="text-red-400" /><MemoizedMetricCard title="Total Days" value={summary.totalTrades || 0} /><MemoizedMetricCard title="Profitable Days" value={summary.winDays || 0} colorClass="text-green-400" /></div></div>
+                <div className="mb-10"><h2 className="flex items-center gap-3 text-2xl font-bold text-teal-400 mb-4"><Icon path="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />Performance Metrics</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><MemoizedMetricCard title="Win Rate" value={formatPercentage(summary.winRate)} colorClass="text-green-400" /><MemoizedMetricCard title="Profit Factor" value={(summary.profitFactor || 0).toFixed(2)} colorClass="text-cyan-400" /><MemoizedMetricCard title="Win/Loss Ratio" value={(summary.winLossRatio || 0).toFixed(2)} colorClass="text-cyan-400" /><MemoizedMetricCard title="Expectancy" value={formatCurrencyCompact(summary.expectancy)} colorClass={(summary.expectancy || 0) >= 0 ? 'text-green-400' : 'text-red-400'} /><MemoizedMetricCard title="Avg. Win" value={formatCurrencyPrecise(summary.avgProfitOnWinDays)} colorClass="text-green-400" /><MemoizedMetricCard title="Avg. Loss" value={formatCurrencyPrecise(summary.avgLossOnLossDays)} colorClass="text-red-400" /><MemoizedMetricCard title="Total Days" value={summary.totalTrades || 0} /><MemoizedMetricCard title="Profitable Days" value={summary.winDays || 0} colorClass="text-green-400" /></div></div>
                 <div className="mb-10"><h2 className="flex items-center gap-3 text-2xl font-bold text-teal-400 mb-4"><Icon path="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />Risk & Extremes</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><MemoizedMetricCard title="Max Drawdown" value={formatPercentage(summary.maxDDPercentage)} colorClass="text-red-400" /><MemoizedMetricCard title="Max Drawdown (Abs)" value={formatCurrencyCompact(summary.maxDrawdown)} colorClass="text-red-400" /><MemoizedMetricCard title="Max Profit" value={formatCurrencyCompact(summary.maxProfit)} colorClass="text-green-400" /><MemoizedMetricCard title="Max Loss" value={formatCurrencyCompact(summary.maxLoss)} colorClass="text-red-400" /><MemoizedMetricCard title="Winning Streak" value={summary.maxWinningStreak || 0} colorClass="text-green-400" /><MemoizedMetricCard title="Losing Streak" value={summary.maxLosingStreak || 0} colorClass="text-red-400" /><MemoizedMetricCard title="Losing Days" value={summary.lossDays || 0} colorClass="text-red-400" /></div></div>
                 
                 {/* Charts Section */}
@@ -1020,13 +1176,21 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
                 </div>
                 
                 {/* Add Trade Form */}
-                <div className="bg-gray-800/40 p-6 rounded-xl shadow-lg border border-gray-700/70 mb-10"><h2 className="text-2xl font-bold text-teal-400 mb-4">Add Day's Record</h2><form onSubmit={handleAddTrade} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start"><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Date</label><input type="date" name="date" value={newTrade.date} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required/></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Gross P&L (₹)</label><input type="number" name="grossPnl" value={newTrade.grossPnl} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" placeholder="e.g., 5000" step="0.01" required/></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Charges (₹)</label><input type="number" name="taxesAndCharges" value={newTrade.taxesAndCharges} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" placeholder="e.g., 500" step="0.01" required/></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Capital (₹)</label><input type="number" name="capitalDeployed" value={newTrade.capitalDeployed} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" placeholder="Capital for this day" step="1" required/></div><div className="lg:col-span-3 flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Notes / Strategy</label><textarea name="notes" value={newTrade.notes} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg w-full text-white" placeholder="e.g., Faded the morning rally..." rows="1"></textarea></div><button type="submit" disabled={isLoading || isPreview} className={`w-full p-3 self-end bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-all duration-300 disabled:bg-gray-500 ${isPreview ? 'cursor-not-allowed' : ''}`}>{isLoading ? 'Adding...' : 'Add Record'}</button></form></div>
+                <div className="bg-gray-800/40 p-6 rounded-xl shadow-lg border border-gray-700/70 mb-10"><h2 className="text-2xl font-bold text-teal-400 mb-4">Add Day's Record</h2><form onSubmit={handleAddTrade} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start"><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Date</label><input type="date" name="date" value={newTrade.date} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required/></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Gross P&L (₹)</label><input type="number" name="grossPnl" value={newTrade.grossPnl} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" placeholder="e.g., 5000" step="0.01" required/></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Charges (₹)</label><input type="number" name="taxesAndCharges" value={newTrade.taxesAndCharges} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" placeholder="e.g., 500" step="0.01" required/></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Capital (₹)</label><input type="number" name="capitalDeployed" value={newTrade.capitalDeployed} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" placeholder="Capital for this day" step="1" required/></div><div className="lg:col-span-3 flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Notes / Strategy</label><textarea name="notes" value={newTrade.notes} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg w-full text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" placeholder="e.g., Faded the morning rally..." rows="1"></textarea></div><button type="submit" disabled={isLoading || isPreview} className={`w-full p-3 self-end bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-all duration-300 transform hover:scale-105 disabled:bg-gray-500 disabled:scale-100 ${isPreview ? 'cursor-not-allowed' : ''}`}>{isLoading ? <span className="animate-pulse">Adding...</span> : 'Add Record'}</button></form></div>
 
                 {/* Tables Section */}
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                     <div className="bg-gray-800/40 p-5 rounded-xl shadow-lg border border-gray-700/70 overflow-x-auto"><h2 className="text-2xl font-bold text-teal-400 mb-4">Monthly Performance</h2><div className="max-h-96 overflow-y-auto"><table className="min-w-full"><thead className="border-b border-gray-600"><tr className="text-gray-300 text-sm uppercase tracking-wider text-left"><th className="p-3 font-semibold">Month</th><th className="p-3 font-semibold">Net P&L</th><th className="p-3 font-semibold">Avg. Capital</th><th className="p-3 font-semibold">Return</th></tr></thead><tbody>{summary.monthlyPerformance?.length > 0 ? summary.monthlyPerformance.map(m => (<tr key={m.month} className="border-b border-gray-700/50 hover:bg-gray-800/60 transition-colors"><td className="p-3 whitespace-nowrap">{m.month}</td><td className={`p-3 whitespace-nowrap font-semibold ${(m.netPnl || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>{formatCurrencyCompact(m.netPnl)}</td><td className="p-3 whitespace-nowrap text-gray-300">{formatCurrencyCompact(m.capitalDeployed)}</td><td className={`p-3 whitespace-nowrap font-semibold ${(m.monthlyReturn || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>{formatPercentage(m.monthlyReturn)}</td></tr>)) : (<tr><td colSpan="4" className="p-8 text-center text-gray-400">No monthly data to display.</td></tr>)}</tbody></table></div></div>
                     <div className="bg-gray-800/40 p-5 rounded-xl shadow-lg border border-gray-700/70 overflow-x-auto">
-                        <div className="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 className="text-2xl font-bold text-teal-400">Daily History ({trades.length})</h2><div className="flex gap-2"><button onClick={handleLoadSampleData} className={`px-4 py-2 bg-indigo-600/80 text-white font-bold rounded-lg hover:bg-indigo-700 transition-all duration-300 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>Load Sample</button><button onClick={handleDeleteAllTrades} className={`px-3 py-2 bg-red-600/80 text-white font-bold rounded-lg hover:bg-red-700 transition-all duration-300 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`} aria-label="Delete All Records"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg></button><button onClick={handleExportCSV} className={`px-4 py-2 bg-teal-500/80 text-white font-bold rounded-lg hover:bg-teal-600 transition-all duration-300 flex items-center gap-2 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`} aria-label="Export to CSV"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" /></svg><span className="hidden sm:inline">Export</span></button></div></div>
+                        <div className="flex flex-wrap justify-between items-center mb-4 gap-4">
+                            <h2 className="text-2xl font-bold text-teal-400">Daily History ({trades.length})</h2>
+                            <div className="flex gap-2 flex-wrap">
+                                <button onClick={handleSharePerformance} disabled={isLoading} className={`px-4 py-2 bg-violet-600/80 text-white font-bold rounded-lg hover:bg-violet-700 transition-all duration-300 flex items-center gap-2 transform hover:scale-105 disabled:bg-gray-500 disabled:scale-100 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`} aria-label="Share Performance"><Icon path="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" className="h-5 w-5" /><span>Share</span></button>
+                                <button onClick={handleLoadSampleData} className={`px-4 py-2 bg-indigo-600/80 text-white font-bold rounded-lg hover:bg-indigo-700 transition-all duration-300 transform hover:scale-105 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>Load Sample</button>
+                                <button onClick={handleDeleteAllTrades} className={`px-3 py-2 bg-red-600/80 text-white font-bold rounded-lg hover:bg-red-700 transition-all duration-300 transform hover:scale-105 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`} aria-label="Delete All Records"><Icon path="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" className="h-5 w-5"/></button>
+                                <button onClick={handleExportCSV} className={`px-4 py-2 bg-teal-500/80 text-white font-bold rounded-lg hover:bg-teal-600 transition-all duration-300 flex items-center gap-2 transform hover:scale-105 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`} aria-label="Export to CSV"><Icon path="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" className="h-5 w-5" /><span className="hidden sm:inline">Export</span></button>
+                            </div>
+                        </div>
                         <div className="max-h-96 overflow-y-auto">
                             <table className="min-w-full"><thead className="sticky top-0 bg-gray-800/95 backdrop-blur-sm border-b border-gray-600"><tr className="text-gray-300 text-sm uppercase text-left"><th className="p-3">Date</th><th className="p-3">Net P&L</th><th className="p-3 text-right">Actions</th></tr></thead>
                                 <tbody>
@@ -1039,8 +1203,8 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
                                                     <td className="p-3">{trade.date}</td>
                                                     <td className={`p-3 font-semibold ${netPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>{formatCurrencyPrecise(netPnl)}</td>
                                                     <td className="p-3 text-right space-x-2">
-                                                        <button onClick={(e) => { e.stopPropagation(); handleEditTrade(trade); }} className={`px-3 py-1 bg-blue-600/20 text-blue-400 hover:bg-blue-500 hover:text-white text-xs font-bold rounded-md transition-colors ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>EDIT</button>
-                                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteTrade(trade.id); }} className={`px-3 py-1 bg-red-600/20 text-red-400 hover:bg-red-500 hover:text-white text-xs font-bold rounded-md transition-colors ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>DELETE</button>
+                                                        <button onClick={(e) => { e.stopPropagation(); handleEditTrade(trade); }} className={`px-3 py-1 bg-blue-600/20 text-blue-400 hover:bg-blue-500 hover:text-white text-xs font-bold rounded-md transition-colors transform hover:scale-110 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>EDIT</button>
+                                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteTrade(trade.id); }} className={`px-3 py-1 bg-red-600/20 text-red-400 hover:bg-red-500 hover:text-white text-xs font-bold rounded-md transition-colors transform hover:scale-110 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>DELETE</button>
                                                     </td>
                                                 </tr>
                                                 {isExpanded && (<tr className="bg-gray-800/50"><td colSpan="3" className="p-4"><div className="text-gray-300"><p><strong className="text-teal-400">Gross P&L:</strong> {formatCurrencyPrecise(trade.grossPnl)}</p><p><strong className="text-teal-400">Charges:</strong> {formatCurrencyPrecise(trade.taxesAndCharges)}</p><p><strong className="text-teal-400">Capital:</strong> {formatCurrencyPrecise(trade.capitalDeployed)}</p>{trade.notes && <p className="mt-2"><strong className="text-teal-400">Notes:</strong> {trade.notes}</p>}</div></td></tr>)}
@@ -1055,6 +1219,10 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
                     </div>
                 </div>
                  <div className="mb-10"><PerformanceCalendar dailyPnlData={summary.dailyPnlData} onDayClick={handleDayClickFromCalendar} /></div>
+
+                 <footer className="text-center mt-8 pt-6 border-t border-gray-800/50">
+                    {userInfo?.expiryDate && <p className="text-amber-400/80 text-xs sm:text-sm">Plan expires on: {new Date(userInfo.expiryDate).toLocaleDateString()}</p>}
+                </footer>
             </>
             )}
         </div>
@@ -1065,6 +1233,7 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
 // --- MAIN APP COMPONENT ---
 const App = () => {
     const [view, setView] = useState('login'); // login, register, plans, dashboard
+    const [viewHistory, setViewHistory] = useState([]);
     const [registrationDetails, setRegistrationDetails] = useState(null);
     const [allData, setAllData] = useState(null);
     const [loggedInCode, setLoggedInCode] = useState(null);
@@ -1073,6 +1242,22 @@ const App = () => {
     const [notification, setNotification] = useState({ show: false, message: '' });
     const [db, setDb] = useState(null);
     const [auth, setAuth] = useState(null);
+
+    // Function to change view and manage history for back button
+    const navigateTo = (newView) => {
+        setViewHistory(prev => [...prev, view]);
+        setView(newView);
+    };
+
+    const goBack = () => {
+        const previousView = viewHistory[viewHistory.length - 1];
+        if (previousView) {
+            setViewHistory(prev => prev.slice(0, -1));
+            setView(previousView);
+        } else {
+            setView('login'); // Fallback to login
+        }
+    };
 
     // Initialize Firebase and Auth
     useEffect(() => {
@@ -1101,7 +1286,7 @@ const App = () => {
         }
     }, []);
 
-    // Load Razorpay and Tone.js scripts
+    // Load external scripts
     useEffect(() => {
         const loadScript = (src, id) => {
             if (document.getElementById(id)) return;
@@ -1113,6 +1298,7 @@ const App = () => {
         };
         loadScript('https://checkout.razorpay.com/v1/checkout.js', 'razorpay-checkout-js');
         loadScript('https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js', 'tone-js-script');
+        loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', 'html2canvas-js');
     }, []);
 
     // Listen for auth state changes and check local storage
@@ -1123,11 +1309,12 @@ const App = () => {
                 const savedCode = localStorage.getItem(SESSION_KEY);
                 if (savedCode) {
                     setLoggedInCode(savedCode);
-                    setView('dashboard');
+                    navigateTo('dashboard');
                 }
             } else {
                 setLoggedInCode(null);
                 setView('login');
+                setViewHistory([]);
             }
             setIsLoading(false);
         });
@@ -1145,7 +1332,6 @@ const App = () => {
                 userInfo: { 
                     name: 'Test User (Expired)', 
                     plan: 'expired', 
-                    // Set expiry date to the past to trigger the expired popup
                     expiryDate: new Date().getTime() - 1000 
                 },
                 journals: [sampleJournal],
@@ -1180,8 +1366,6 @@ const App = () => {
             return;
         };
         
-        // This onSnapshot listener is the core of the real-time functionality.
-        // It automatically fires whenever the data for this user changes in the cloud.
         const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, loggedInCode);
         const unsubscribe = onSnapshot(docRef, (docSnap) => {
             if (docSnap.exists()) {
@@ -1200,9 +1384,7 @@ const App = () => {
     }, [db, loggedInCode]);
 
 
-    // This function sends the updated data to the cloud.
     const updateData = async (newData) => {
-        // For the test user, only update the local state
         if (loggedInCode === '0000000000' || loggedInCode === '1111111111') {
             setAllData(newData);
             showSuccessNotification("Data updated in test session.");
@@ -1211,7 +1393,6 @@ const App = () => {
         if (!db || !loggedInCode) return;
         const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, loggedInCode);
         try {
-            // setDoc saves or overwrites data in the specified document.
             await setDoc(docRef, newData, { merge: true });
         } catch (error) {
             console.error("Error saving data to Firestore:", error);
@@ -1220,11 +1401,10 @@ const App = () => {
     };
     
     const handleLogin = async (code, password) => {
-        // Handle static test user logins
         if ((code === '0000000000' || code === '1111111111') && password === 'test') {
             localStorage.setItem(SESSION_KEY, code);
             setLoggedInCode(code);
-            setView('dashboard');
+            navigateTo('dashboard');
             return;
         }
 
@@ -1240,7 +1420,7 @@ const App = () => {
                 if (data.userInfo.password === password) {
                     localStorage.setItem(SESSION_KEY, code);
                     setLoggedInCode(code);
-                    setView('dashboard');
+                    navigateTo('dashboard');
                 } else {
                     setModal({ isOpen: true, type: 'alert', message: 'Invalid password.' });
                 }
@@ -1257,6 +1437,7 @@ const App = () => {
         localStorage.removeItem(SESSION_KEY);
         setLoggedInCode(null);
         setView('login');
+        setViewHistory([]);
     };
     
     const showSuccessNotification = (message) => {
@@ -1266,7 +1447,7 @@ const App = () => {
     };
 
     const handlePlanActivation = async (planType, amountInPaise) => {
-        if (RAZORPAY_KEY_ID === 'YOUR_KEY_ID_HERE' || !window.Razorpay) {
+        if (RAZORPAY_KEY_ID === 'rzp_live_pWNLoIsX4fvAzA' || !window.Razorpay) {
             setModal({isOpen: true, type: 'alert', message: 'Payment gateway is not configured. Please contact the administrator.'});
             return;
         }
@@ -1333,10 +1514,10 @@ const App = () => {
     
     const renderView = () => {
         switch(view) {
-            case 'register': return <RegisterScreen setView={setView} setRegistrationDetails={setRegistrationDetails} db={db} setModal={setModal} />;
-            case 'plans': return <PlansScreen handlePlanActivation={handlePlanActivation} setModal={setModal} />;
-            case 'dashboard': return <Dashboard allData={allData} updateData={updateData} userId={loggedInCode} onLogout={handleLogout} modal={modal} setModal={setModal} db={db} setView={setView} />;
-            case 'login': default: return <LoginScreen onLogin={handleLogin} setModal={setModal} setView={setView} db={db} />;
+            case 'register': return <RegisterScreen setView={navigateTo} setRegistrationDetails={setRegistrationDetails} db={db} setModal={setModal} goBack={goBack} />;
+            case 'plans': return <PlansScreen handlePlanActivation={handlePlanActivation} setModal={setModal} goBack={goBack} />;
+            case 'dashboard': return <Dashboard allData={allData} updateData={updateData} userId={loggedInCode} onLogout={handleLogout} modal={modal} setModal={setModal} db={db} setView={navigateTo} />;
+            case 'login': default: return <LoginScreen onLogin={handleLogin} setModal={setModal} setView={navigateTo} db={db} />;
         }
     };
 
@@ -1365,6 +1546,15 @@ const App = () => {
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
                 body { font-family: 'Inter', sans-serif; }
+                
+                /* --- Global Fluidity & Transitions --- */
+                * {
+                    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, opacity 0.3s ease;
+                }
+                button, select, input, textarea {
+                     transition: all 0.2s ease-in-out;
+                }
+
                 .animate-fade-in-out { animation: fadeInOut 3s forwards; }
                 @keyframes fadeInOut {
                     0% { opacity: 0; transform: translateY(-20px); }
