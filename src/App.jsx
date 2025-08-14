@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo, memo } from 'react';
+import React, { useState, useEffect, useMemo, memo, useRef } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, BarChart, Bar, Cell, AreaChart, Area
 } from 'recharts';
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
-import { getFirestore, doc, onSnapshot, setDoc, getDoc } from "firebase/firestore";
+import { getFirestore, doc, onSnapshot, setDoc, getDoc, updateDoc, arrayUnion, collection, getDocs, deleteDoc } from "firebase/firestore";
 
 
 // --- CONSTANTS & CONFIG ---
@@ -12,10 +12,11 @@ const DAY_NAME_MAPPING = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'
 const TRADES_PER_PAGE = 20;
 const SESSION_KEY = 'proTraderAccessCode';
 const DB_COLLECTION_NAME = 'pro_trader_journals';
-const XPONENTIAL_LOGO_BASE64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAADMElEQVR4nOzVwQnAMAwEwe9/6G6gBTuI4Sg7Njpb2+d5/g4gwI8CBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAL8B+ALAwAQi3gAAAABJRU5ErkJggg==";
+const COUPONS_COLLECTION_NAME = 'coupons';
+const ADMIN_PASSWORD = 'Pujan@123'; // The password for the admin panel
+const XPONENTIAL_LOGO_BASE_64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAADMElEQVR4nOzVwQnAMAwEwe9/6G6gBTuI4Sg7Njpb2+d5/g4gwI8CBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAL8B+ALAwAQi3gAAAABJRU5ErkJggg==";
 
 // --- IMPORTANT: PLACE YOUR RAZORPAY KEY ID HERE ---
-// Replace 'YOUR_KEY_ID_HERE' with your actual Razorpay Key ID to enable payments.
 const RAZORPAY_KEY_ID = 'rzp_live_pWNLoIsX4fvAzA';
 
 // --- FIREBASE CONFIG (placeholders, will be handled by environment) ---
@@ -238,10 +239,17 @@ const calculateAnalytics = (currentTrades, journalInitialCapital = 0) => {
 
 
 // --- UI COMPONENTS ---
-const MemoizedMetricCard = memo(({ title, value, colorClass = 'text-gray-200' }) => (
-  <div className="bg-gray-800/50 p-4 rounded-lg text-center transition-all duration-300 ease-in-out hover:bg-gray-700/50 transform hover:-translate-y-1.5 hover:shadow-xl hover:shadow-teal-500/20">
-    <h3 className="text-sm text-gray-400 mb-1 transition-colors">{title}</h3>
-    <p className={`text-xl lg:text-2xl font-bold transition-colors ${colorClass}`}>{value}</p>
+const MemoizedMetricCard = memo(({ title, value, colorClass = 'text-gray-200', delay, isVisible }) => (
+  <div 
+    className={`
+      bg-gray-800/50 p-4 rounded-lg text-center transform transition-all duration-150 
+      ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}
+      hover:bg-gray-700/50 hover:-translate-y-1.5 hover:scale-105 hover:shadow-xl hover:shadow-teal-500/20
+    `}
+    style={{ transitionDelay: `${delay * 40}ms` }}
+  >
+    <h3 className="text-sm text-gray-400 mb-1">{title}</h3>
+    <p className={`text-xl lg:text-2xl font-bold ${colorClass}`}>{value}</p>
   </div>
 ));
 
@@ -253,6 +261,116 @@ const BackButton = ({ onClick }) => (
     </button>
 );
 
+const LandingPage = ({ setView }) => {
+    const Icon = memo(({ path, className = "h-8 w-8" }) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d={path} /></svg>);
+
+    const allFeatures = useMemo(() => [
+        { icon: <Icon path="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>, title: 'Track Your Bottom Line' },
+        { icon: <Icon path="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>, title: 'Visualize Your Growth' },
+        { icon: <Icon path="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/>, title: 'Measure Capital Efficiency' },
+        { icon: <Icon path="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V7l-4.5 4.5L13 8l-4.5 4.5L3 7z"/>, title: 'Know Your Win Rate' },
+        { icon: <Icon path="M4.874 15.126a5.002 5.002 0 010-6.252M19.126 15.126a5.002 5.002 0 000-6.252"/>, title: 'Gauge Strategy Health' },
+        { icon: <Icon path="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/>, title: 'Understand Your Risk' },
+        { icon: <Icon path="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>, title: 'Discover Hidden Patterns' },
+        { icon: <Icon path="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>, title: 'Connect Mindset to Results' },
+        { icon: <Icon path="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>, title: 'Own Your Data' },
+    ], []);
+
+    const sampleData = useMemo(() => {
+        const initialCapital = 1000000;
+        const sampleJournal = { id: 'preview_journal', name: 'Preview Strategy', initialCapital: initialCapital };
+        const trades = generateSampleTrades(125, initialCapital);
+        return {
+            userInfo: { name: 'Demo User', plan: 'pro', expiryDate: new Date().getTime() + 365 * 24 * 60 * 60 * 1000 },
+            journals: [sampleJournal],
+            trades: { 'preview_journal': trades }
+        };
+    }, []);
+
+    return (
+        <div className="min-h-screen bg-gray-950 text-gray-100 font-sans overflow-x-hidden">
+            <div className="absolute inset-0 -z-10 h-full w-full bg-gray-950 bg-[radial-gradient(#14b8a6_1px,transparent_1px)] [background-size:16px_16px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)]"></div>
+
+            <header className="absolute top-0 left-0 right-0 z-20 p-4">
+                <div className="container mx-auto flex justify-between items-center">
+                    <h1 className="text-xl font-bold text-teal-400 tracking-wider">PRO TRADER JOURNAL</h1>
+                    <div className="space-x-2">
+                        <button onClick={() => setView('login')} className="px-4 py-2 text-teal-300 font-semibold rounded-lg hover:bg-gray-800/50 transition-colors">Login</button>
+                        <button onClick={() => setView('register')} className="px-4 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-all transform hover:scale-105">Sign Up</button>
+                    </div>
+                </div>
+            </header>
+
+            <main className="container mx-auto flex flex-col justify-center items-center min-h-screen text-center px-4 pt-20 pb-10">
+                <h2 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-cyan-400 to-sky-500 tracking-tight leading-tight pb-2">
+                    Achieve Trading Mastery
+                </h2>
+                <div className="flex flex-col sm:flex-row items-center justify-center text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight mt-2">
+                    <span className="text-gray-300 mr-3">Through</span>
+                    <div className="h-12 md:h-14 overflow-hidden">
+                         <ul className="animate-scroll-up">
+                            <li className="text-teal-400 h-12 md:h-14 flex items-center justify-center sm:justify-start">Data-Driven Insights.</li>
+                            <li className="text-cyan-400 h-12 md:h-14 flex items-center justify-center sm:justify-start">Disciplined Execution.</li>
+                            <li className="text-emerald-400 h-12 md:h-14 flex items-center justify-center sm:justify-start">Performance Analysis.</li>
+                            <li className="text-violet-400 h-12 md:h-14 flex items-center justify-center sm:justify-start">Systematic Risk-Taking.</li>
+                            <li className="text-rose-400 h-12 md:h-14 flex items-center justify-center sm:justify-start">Strategic Refinement.</li>
+                            <li className="text-teal-400 h-12 md:h-14 flex items-center justify-center sm:justify-start">Data-Driven Insights.</li>
+                        </ul>
+                    </div>
+                </div>
+                <p className="mt-6 max-w-2xl text-lg text-gray-400">
+                    Stop guessing. Start analyzing. The ultimate journal for serious traders who want to find their edge, manage risk, and build lasting consistency.
+                </p>
+                <button onClick={() => setView('register')} className="mt-10 px-8 py-4 bg-gradient-to-r from-teal-400 to-cyan-500 text-white font-bold rounded-xl hover:opacity-90 transition-opacity duration-300 text-lg shadow-lg shadow-teal-500/30 transform hover:scale-105">
+                    Start Your 1-Month Trial for ₹99
+                </button>
+            </main>
+
+            <section className="py-12 bg-gray-950/50 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-gray-950 via-transparent to-gray-950 z-10"></div>
+                <div className="flex animate-ticker">
+                    {[...allFeatures, ...allFeatures].map((feature, index) => (
+                        <div key={index} className="flex-shrink-0 flex items-center space-x-4 mx-6 p-4 bg-gray-800/50 rounded-lg border border-gray-700/50">
+                            <div className="text-teal-400">{feature.icon}</div>
+                            <span className="text-lg font-semibold text-white whitespace-nowrap">{feature.title}</span>
+                        </div>
+                    ))}
+                </div>
+            </section>
+            
+            <section className="py-20">
+                <div className="container mx-auto px-4 text-center">
+                    <h2 className="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 mb-4">A Sneak Peek of the Dashboard</h2>
+                    <p className="max-w-3xl mx-auto text-lg text-gray-400 mb-12">This is the command center for your trading. All your data, beautifully visualized.</p>
+                    <div className="relative group">
+                        <div className="absolute -inset-0.5 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-3xl blur-lg opacity-50 group-hover:opacity-75 transition duration-1000 group-hover:duration-200 animate-tilt"></div>
+                        <div className="relative scale-[0.85] sm:scale-100 origin-top sm:origin-center">
+                             <Dashboard
+                                allData={sampleData}
+                                isPreview={true}
+                                setModal={() => {}}
+                                updateData={() => {}}
+                                userId="preview_user"
+                                onLogout={() => {}}
+                                setView={() => {}}
+                                modal={{ isOpen: false }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+
+            <footer className="py-8">
+                <div className="container mx-auto text-center text-gray-500">
+                    <p>&copy; {new Date().getFullYear()} Pro Trader Journal. All Rights Reserved.</p>
+                    <button onClick={() => setView('admin')} className="text-xs text-gray-700 hover:text-gray-500 mt-2">Admin Panel</button>
+                </div>
+            </footer>
+        </div>
+    );
+};
+
 const LoginScreen = ({ onLogin, setModal, setView, db }) => {
     const [code, setCode] = useState('');
     const [password, setPassword] = useState('');
@@ -260,42 +378,30 @@ const LoginScreen = ({ onLogin, setModal, setView, db }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setIsLoading(true);
         if (!code || !password) {
             setModal({ isOpen: true, type: 'alert', message: 'Please enter an access code and password.' });
-            setIsLoading(false);
             return;
         }
-        await onLogin(code, password);
-        setIsLoading(false);
+        setIsLoading(true);
+        try {
+            await onLogin(code, password);
+        } catch (error) {
+            // Errors are handled within onLogin, but this catch prevents unhandled promise rejections
+            console.error("Login attempt failed:", error);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
-        <div className="min-h-screen bg-gray-950 flex flex-col justify-center items-center p-4 text-gray-100 font-sans overflow-y-auto">
-            <div className="absolute inset-0 -z-10 h-full w-full bg-gray-950 bg-[radial-gradient(#14b8a6_1px,transparent_1px)] [background-size:16px_16px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)]"></div>
-            
-            <div className="w-full max-w-4xl mx-auto text-center flex flex-col items-center space-y-8 sm:space-y-12">
-                <h1 className="text-3xl sm:text-5xl font-bold text-teal-400 tracking-wider whitespace-nowrap">
-                    PRO TRADER JOURNAL
-                </h1>
-
-                <div className="text-xl sm:text-2xl md:text-4xl font-bold flex items-center justify-center flex-wrap">
-                    <span className="text-gray-200 mr-2 sm:mr-3">Become a</span>
-                    <div className="h-[1.2em] overflow-hidden">
-                        <ul className="animate-scroll-up leading-tight">
-                            <li className="text-teal-400 h-[1.2em] flex items-center justify-center">Systematic</li>
-                            <li className="text-cyan-400 h-[1.2em] flex items-center justify-center">Profitable</li>
-                            <li className="text-emerald-400 h-[1.2em] flex items-center justify-center">Disciplined</li>
-                            <li className="text-violet-400 h-[1.2em] flex items-center justify-center">Consistent</li>
-                            <li className="text-rose-400 h-[1.2em] flex items-center justify-center">Focused</li>
-                            <li className="text-teal-400 h-[1.2em] flex items-center justify-center">Systematic</li>
-                        </ul>
-                    </div>
-                    <span className="text-gray-200 ml-2 sm:ml-3">Trader</span>
-                </div>
-
-                <div className="bg-gray-900/50 backdrop-blur-sm border border-teal-800/50 rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-md">
-                    <h2 className="text-xl font-bold text-center text-teal-400 mb-6">Login to Your Journal</h2>
+        <div className="min-h-screen bg-gray-950 flex flex-col justify-center items-center p-4 text-gray-100 font-sans">
+             <div className="absolute inset-0 -z-10 h-full w-full bg-gray-950 bg-[radial-gradient(#14b8a6_1px,transparent_1px)] [background-size:16px_16px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)]"></div>
+            <div className="w-full max-w-md">
+                <header className="text-center mb-8">
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-500 tracking-wide">Welcome Back</h1>
+                    <p className="text-gray-400 mt-2">Login to access your journal.</p>
+                </header>
+                <div className="bg-gray-900/50 backdrop-blur-sm border border-teal-800/50 rounded-2xl shadow-2xl p-8">
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <input type="text" placeholder="Access Code" value={code} onChange={(e) => setCode(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-center tracking-widest focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required />
                         <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-center tracking-widest focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required />
@@ -307,6 +413,11 @@ const LoginScreen = ({ onLogin, setModal, setView, db }) => {
                         Don't have an account?{' '}
                         <button onClick={() => setView('register')} className="font-semibold text-teal-400 hover:text-teal-300 transition-colors">
                             Register Here
+                        </button>
+                    </p>
+                     <p className="text-center text-gray-500 mt-4 text-sm">
+                        <button onClick={() => setView('landing')} className="hover:text-gray-300 transition-colors">
+                            &larr; Back to Home
                         </button>
                     </p>
                 </div>
@@ -339,14 +450,8 @@ const RegisterScreen = ({ setView, setRegistrationDetails, db, setModal, goBack 
 
         const trimmedCode = accessCode.trim();
 
-        if (!/^\d+$/.test(trimmedCode)) {
-            setModal({ isOpen: true, type: 'alert', message: 'Access Code must contain only digits.' });
-            setIsLoading(false);
-            return;
-        }
-        
-        if (trimmedCode.length < 5) {
-            setModal({ isOpen: true, type: 'alert', message: 'Access Code must be at least 5 digits.' });
+        if (!/^\d{5,10}$/.test(trimmedCode)) {
+            setModal({ isOpen: true, type: 'alert', message: 'Access Code must be 5 to 10 digits.' });
             setIsLoading(false);
             return;
         }
@@ -375,10 +480,11 @@ const RegisterScreen = ({ setView, setRegistrationDetails, db, setModal, goBack 
             <div className="w-full max-w-md">
                  <header className="text-center mb-8">
                     <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-500 tracking-wide">Create Your Account</h1>
+                    <p className="text-gray-400 mt-2">Set up your secure access to the journal.</p>
                 </header>
                 <div className="bg-gray-900 border border-teal-800/50 rounded-2xl shadow-2xl p-8">
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <input type="tel" pattern="[0-9]*" placeholder="Desired Access Code (5+ digits)" value={accessCode} onChange={e => setAccessCode(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required />
+                        <input type="tel" pattern="\d{5,10}" title="Access Code must be 5 to 10 digits." placeholder="Create a Secure 5-10 Digit PIN" value={accessCode} onChange={e => setAccessCode(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required />
                         <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required />
                         <input type="password" placeholder="Confirm Password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required />
                         <button type="submit" disabled={isLoading} className="w-full p-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-all transform hover:scale-105 disabled:bg-gray-500 disabled:scale-100">
@@ -391,14 +497,52 @@ const RegisterScreen = ({ setView, setRegistrationDetails, db, setModal, goBack 
                             Login
                         </button>
                     </p>
+                    <p className="text-center text-gray-500 mt-4 text-sm">
+                        <button onClick={() => setView('landing')} className="hover:text-gray-300 transition-colors">
+                            &larr; Back to Home
+                        </button>
+                    </p>
                 </div>
             </div>
         </div>
     );
 };
 
-const PlansScreen = ({ handlePlanActivation, setModal, goBack }) => {
+const PlansScreen = ({ onPlanSelect, setModal, goBack, db }) => {
     const [showPreview, setShowPreview] = useState(false);
+    const [couponCode, setCouponCode] = useState('');
+    const [appliedCoupon, setAppliedCoupon] = useState(null);
+    const [discountedPrices, setDiscountedPrices] = useState({ monthly: 9900, yearly: 49900 });
+
+    const handleApplyCoupon = async () => {
+        if (!couponCode.trim()) {
+            setModal({ isOpen: true, type: 'alert', message: 'Please enter a coupon code.' });
+            return;
+        }
+        try {
+            const couponRef = doc(db, 'artifacts', appId, 'public', 'data', COUPONS_COLLECTION_NAME, couponCode.trim().toUpperCase());
+            const couponSnap = await getDoc(couponRef);
+            if (couponSnap.exists()) {
+                const couponData = couponSnap.data();
+                if (couponData.isActive) {
+                    setAppliedCoupon(couponData);
+                    const discount = couponData.discountPercentage / 100;
+                    setDiscountedPrices({
+                        monthly: Math.round(9900 * (1 - discount)),
+                        yearly: Math.round(49900 * (1 - discount)),
+                    });
+                    setModal({ isOpen: true, type: 'alert', message: `Coupon applied! ${couponData.discountPercentage}% off.` });
+                } else {
+                    setModal({ isOpen: true, type: 'alert', message: 'This coupon is no longer active.' });
+                }
+            } else {
+                setModal({ isOpen: true, type: 'alert', message: 'Invalid coupon code.' });
+            }
+        } catch (error) {
+            console.error("Error applying coupon:", error);
+            setModal({ isOpen: true, type: 'alert', message: 'Could not apply coupon. Please try again.' });
+        }
+    };
 
     const sampleData = useMemo(() => {
         const initialCapital = 1000000;
@@ -467,30 +611,36 @@ const PlansScreen = ({ handlePlanActivation, setModal, goBack }) => {
             <div className="absolute inset-0 -z-10 h-full w-full bg-gray-950 bg-grid"></div>
             <div className="w-full max-w-7xl mx-auto">
                 <header className="text-center my-12 md:my-16">
-                    <h1 className="text-4xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-400 tracking-tight">The Professional's Toolkit for</h1>
-                     <div className="text-4xl md:text-6xl font-extrabold tracking-tight h-16 md:h-20 flex items-center justify-center overflow-hidden mt-2">
-                        <div className="h-16 md:h-20 overflow-hidden">
+                    <h1 className="text-3xl sm:text-4xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-400 tracking-tight">The Professional's Toolkit for</h1>
+                     <div className="flex flex-col sm:flex-row items-center justify-center text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-tight mt-2">
+                        <div className="h-12 md:h-16 overflow-hidden">
                             <ul className="animate-scroll-up leading-tight">
-                                <li className="text-teal-400 h-16 md:h-20 flex items-center">Data-Driven</li>
-                                <li className="text-cyan-400 h-16 md:h-20 flex items-center">Disciplined</li>
-                                <li className="text-emerald-400 h-16 md:h-20 flex items-center">Profitable</li>
-                                <li className="text-violet-400 h-16 md:h-20 flex items-center">Systematic</li>
-                                <li className="text-rose-400 h-16 md:h-20 flex items-center">Consistent</li>
-                                <li className="text-teal-400 h-16 md:h-20 flex items-center">Data-Driven</li>
+                                <li className="text-teal-400 h-12 md:h-16 flex items-center justify-center sm:justify-end">Data-Driven</li>
+                                <li className="text-cyan-400 h-12 md:h-16 flex items-center justify-center sm:justify-end">Disciplined</li>
+                                <li className="text-emerald-400 h-12 md:h-16 flex items-center justify-center sm:justify-end">Performance</li>
+                                <li className="text-violet-400 h-12 md:h-16 flex items-center justify-center sm:justify-end">Systematic</li>
+                                <li className="text-rose-400 h-12 md:h-16 flex items-center justify-center sm:justify-end">Strategic</li>
+                                <li className="text-teal-400 h-12 md:h-16 flex items-center justify-center sm:justify-end">Data-Driven</li>
                             </ul>
                         </div>
-                        <span className="ml-3 text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-400">Trading.</span>
+                        <span className="ml-0 sm:ml-3 text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-400">Trading.</span>
                     </div>
                 </header>
 
                 <div className="flex flex-col sm:flex-row items-stretch justify-center gap-8 my-16">
-                    <div className="w-full max-w-sm bg-gray-900/50 backdrop-blur-sm border border-teal-800/50 rounded-2xl p-8 text-center transition-all duration-300 hover:border-teal-500/70 hover:shadow-2xl hover:shadow-teal-500/10 transform hover:-translate-y-2 flex flex-col">
+                    <div className="w-full max-w-sm bg-gray-900/50 backdrop-blur-sm border border-teal-800/50 rounded-2xl p-8 text-center transition-all duration-300 hover:border-teal-500/70 hover:shadow-2xl hover:shadow-teal-500/10 transform hover:-translate-y-2 flex flex-col relative">
+                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-red-500 text-white font-bold px-4 py-1 rounded-full text-sm animate-pulse">
+                            LIMITED TIME OFFER
+                        </div>
                         <div className="flex-grow">
                             <h3 className="text-2xl font-bold text-gray-300">Pro Monthly</h3>
                             <p className="mt-2 text-gray-400">Flexible monthly access</p>
-                            <p className="my-8 text-5xl font-extrabold text-white">₹99 <span className="text-xl font-medium text-gray-400">/ month</span></p>
+                            <div className="my-8">
+                                <p className="text-5xl font-extrabold text-white">₹{discountedPrices.monthly / 100} <span className="text-xl font-medium text-gray-400">/ month</span></p>
+                                {appliedCoupon ? <p className="text-lg text-gray-500 line-through">₹99</p> : <p className="text-lg text-gray-500 line-through">₹300</p>}
+                            </div>
                         </div>
-                        <button onClick={() => handlePlanActivation('monthly', 9900)} className="w-full p-4 bg-gray-700 text-white font-bold rounded-xl hover:bg-gray-600 transition-all duration-300 text-lg shadow-lg mt-4">
+                        <button onClick={() => onPlanSelect('monthly', discountedPrices.monthly)} className="w-full p-4 bg-gray-700 text-white font-bold rounded-xl hover:bg-gray-600 transition-all duration-300 text-lg shadow-lg mt-4">
                             Get Started
                         </button>
                     </div>
@@ -501,15 +651,27 @@ const PlansScreen = ({ handlePlanActivation, setModal, goBack }) => {
                         </div>
                         <div className="flex-grow">
                             <h3 className="text-2xl font-bold text-white">Pro Yearly</h3>
-                            <p className="mt-2 text-teal-300">Save over 58%</p>
-                            <p className="my-4 text-5xl font-extrabold text-white">₹499 <span className="text-xl font-medium text-gray-400">/ year</span></p>
-                            <p className="text-lg text-gray-400 -mt-2 mb-4">(Just ₹{(499/12).toFixed(2)}/mo)</p>
+                            <p className="mt-2 text-teal-300">Save over 85%</p>
+                            <div className="my-4">
+                                <p className="text-5xl font-extrabold text-white">₹{discountedPrices.yearly / 100} <span className="text-xl font-medium text-gray-400">/ year</span></p>
+                                {appliedCoupon ? <p className="text-lg text-gray-500 line-through">₹499</p> : <p className="text-lg text-gray-500 line-through">₹3599</p>}
+                            </div>
+                            <p className="text-lg text-gray-400 -mt-2 mb-4">(Just ₹{(discountedPrices.yearly / 12 / 100).toFixed(2)}/mo)</p>
                         </div>
-                        <button onClick={() => handlePlanActivation('yearly', 49900)} className="w-full p-4 bg-gradient-to-r from-teal-400 to-cyan-500 text-white font-bold rounded-xl hover:opacity-90 transition-opacity duration-300 text-lg shadow-lg shadow-teal-500/30 mt-4">
+                        <button onClick={() => onPlanSelect('yearly', discountedPrices.yearly)} className="w-full p-4 bg-gradient-to-r from-teal-400 to-cyan-500 text-white font-bold rounded-xl hover:opacity-90 transition-opacity duration-300 text-lg shadow-lg shadow-teal-500/30 mt-4">
                             Go Pro Yearly
                         </button>
                     </div>
                 </div>
+                
+                <div className="my-16 max-w-sm mx-auto">
+                    <div className="flex gap-2">
+                        <input type="text" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} placeholder="Enter Coupon Code" className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" />
+                        <button onClick={handleApplyCoupon} className="px-6 py-3 bg-gray-700 text-white font-bold rounded-lg hover:bg-gray-600 transition-colors">Apply</button>
+                    </div>
+                    {appliedCoupon && <p className="text-center text-green-400 mt-2">Applied: {appliedCoupon.discountPercentage}% off!</p>}
+                </div>
+
 
                 <div className="my-24 text-center">
                     <button onClick={() => setShowPreview(!showPreview)} className="px-8 py-4 bg-gray-800 text-teal-300 font-bold rounded-xl hover:bg-gray-700 transition-all duration-300 text-lg shadow-lg border border-teal-800/50">
@@ -705,43 +867,35 @@ const PerformanceCalendar = memo(({ dailyPnlData, onDayClick }) => {
     );
 });
 
-const ShareablePerformanceCard = React.forwardRef(({ userName, todaysPerformance, thisMonthsPerformance, capitalMetrics }, ref) => {
+const ShareablePerformanceCard = React.forwardRef(({
+  title,
+  period,
+  mainMetrics,
+  secondaryMetrics,
+  dailyBreakdown
+}, ref) => {
     const formatCurrencyNoDecimals = (value) => `₹${(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 
-    // Component for displaying P&L stats.
-    const PnlStat = ({ label, pnl, roi }) => {
-        const isProfit = pnl >= 0;
-        const colorClass = isProfit ? 'text-emerald-400' : 'text-red-500';
-        const bgColorClass = isProfit ? 'bg-emerald-900/50' : 'bg-red-900/50';
+    const StatCard = ({ label, value, roi, isPnl = false }) => {
+        const isProfit = value >= 0;
+        const colorClass = isPnl ? (isProfit ? 'text-emerald-400' : 'text-red-500') : 'text-cyan-400';
+        const bgColorClass = isPnl ? (isProfit ? 'bg-emerald-900/50' : 'bg-red-900/50') : 'bg-cyan-900/50';
         
         return (
             <div className={`p-4 rounded-xl ${bgColorClass} border border-gray-700/50 flex flex-col`}>
                 <p className="text-sm text-gray-400 font-medium mb-2">{label}</p>
-                <div className="flex-grow" /> {/* This spacer will push content down */}
+                <div className="flex-grow" />
                 <div>
-                    <p className={`text-2xl font-bold leading-tight ${colorClass}`}>{formatCurrencyNoDecimals(pnl)}</p>
-                    <div className={`flex items-center text-sm font-semibold ${colorClass} mt-1 gap-1`}>
-                        <span>{formatPercentage(roi)} ROI</span>
-                    </div>
+                    <p className={`text-2xl font-bold leading-tight ${colorClass}`}>{formatCurrencyNoDecimals(value)}</p>
+                    {roi !== undefined && (
+                        <div className={`flex items-center text-sm font-semibold ${colorClass} mt-1 gap-1`}>
+                            <span>{formatPercentage(roi)} ROI</span>
+                        </div>
+                    )}
                 </div>
             </div>
         );
     };
-
-    // Component for displaying Capital stats.
-    const CapitalStat = ({ label, value }) => (
-        <div className="p-4 rounded-xl bg-cyan-900/50 border border-gray-700/50 flex flex-col">
-            <p className="text-sm text-gray-400 font-medium mb-2">{label}</p>
-            <div className="flex-grow" /> {/* This spacer will push content down */}
-            <div>
-                <p className="text-2xl font-bold leading-tight text-cyan-400">{formatCurrencyNoDecimals(value)}</p>
-                {/* This invisible placeholder has the same structure as the ROI line for alignment */}
-                <div className="flex items-center text-sm font-semibold mt-1 invisible">
-                    <span className="ml-1">Placeholder</span>
-                </div>
-            </div>
-        </div>
-    );
 
     return (
         <div ref={ref} className="bg-gradient-to-br from-gray-900 to-black text-white p-6 rounded-2xl w-[480px] font-sans border border-teal-700/30 shadow-2xl shadow-teal-500/10 overflow-hidden relative">
@@ -752,8 +906,9 @@ const ShareablePerformanceCard = React.forwardRef(({ userName, todaysPerformance
                 <header className="flex justify-between items-start pb-4 border-b border-gray-700/50">
                     <div>
                         <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-400">
-                            Performance Snapshot
+                            {title}
                         </h2>
+                        <p className="text-md text-gray-400">{period}</p>
                     </div>
                     <div className="text-right">
                         <p className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-gray-200 to-gray-400">PRO TRADER JOURNAL</p>
@@ -763,12 +918,32 @@ const ShareablePerformanceCard = React.forwardRef(({ userName, todaysPerformance
 
                 <main className="my-6">
                     <div className="grid grid-cols-2 gap-4">
-                        <PnlStat label="Today's P&L" pnl={todaysPerformance.pnl} roi={todaysPerformance.roi} />
-                        <CapitalStat label="Capital Deployed Today" value={capitalMetrics.todaysCapital} />
-                        <PnlStat label="This Month's P&L" pnl={thisMonthsPerformance.pnl} roi={thisMonthsPerformance.roi} />
-                        <CapitalStat label="Avg Capital This Month" value={capitalMetrics.thisMonthsAvgCapital} />
+                        <StatCard label={mainMetrics.pnlLabel} value={mainMetrics.pnlValue} roi={mainMetrics.roiValue} isPnl={true} />
+                        <StatCard label={mainMetrics.capitalLabel} value={mainMetrics.capitalValue} />
                     </div>
+                    {secondaryMetrics && (
+                         <div className="grid grid-cols-2 gap-4 mt-4">
+                            <StatCard label={secondaryMetrics.pnlLabel} value={secondaryMetrics.pnlValue} roi={secondaryMetrics.roiValue} isPnl={true} />
+                            <StatCard label={secondaryMetrics.capitalLabel} value={secondaryMetrics.capitalValue} />
+                        </div>
+                    )}
                 </main>
+                
+                {dailyBreakdown && dailyBreakdown.length > 0 && (
+                    <div className="mt-4 border-t border-gray-700/50 pt-3">
+                        <h3 className="text-lg font-bold text-teal-300 mb-2 text-center">Daily Breakdown</h3>
+                        <div className="max-h-32 overflow-y-auto text-xs space-y-1 pr-2">
+                            {dailyBreakdown.map(day => (
+                                <div key={day.date} className="flex justify-between items-center bg-gray-800/50 p-1 rounded">
+                                    <span>{new Date(day.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
+                                    <span className={day.pnl >= 0 ? 'text-emerald-400 font-mono' : 'text-red-500 font-mono'}>
+                                        {formatCurrencyNoDecimals(day.pnl)}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
                 
                 <footer className="text-center mt-4 border-t border-gray-700/50 pt-3">
                     <p className="text-xs text-gray-500">Track your journey to profitability. Generated by Pro Trader Journal.</p>
@@ -779,7 +954,7 @@ const ShareablePerformanceCard = React.forwardRef(({ userName, todaysPerformance
 });
 
 
-const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db, setView, isPreview = false }) => {
+const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db, setView, isPreview = false, handleStartRenewal }) => {
     // --- STATE MANAGEMENT ---
     const [selectedJournalId, setSelectedJournalId] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -789,18 +964,27 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
         const todayLocal = new Date(today.getTime() - (today.getTimezoneOffset() * 60000));
         return { date: todayLocal.toISOString().split('T')[0], day: DAY_NAME_MAPPING[today.getDay()], grossPnl: '', taxesAndCharges: '', capitalDeployed: '', notes: '' };
     });
-    const [expandedTradeId, setExpandedTradeId] = useState(null);
+    const [expandedTradeIds, setExpandedTradeIds] = useState([]);
     const [highlightedDate, setHighlightedDate] = useState(null);
     const [windowWidth, setWindowWidth] = useState(window.innerWidth);
     const [isExpired, setIsExpired] = useState(false);
+    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+    const [hasAnimated, setHasAnimated] = useState(false);
+    const [shareData, setShareData] = useState(null);
     const shareCardRef = React.useRef();
 
+    // --- DERIVED STATE & MEMOIZATION (MOVED UP) ---
     const currentUserData = useMemo(() => allData || { journals: [], trades: {} }, [allData]);
     const journals = currentUserData.journals || [];
     const trades = useMemo(() => (selectedJournalId ? currentUserData.trades?.[selectedJournalId] : []) || [], [currentUserData, selectedJournalId]);
     const userInfo = currentUserData?.userInfo;
     const userName = userInfo?.name;
-
+    const selectedJournal = useMemo(() => journals.find(j => j.id === selectedJournalId), [journals, selectedJournalId]);
+    const summary = useMemo(() => {
+        const initialCapital = selectedJournal ? parseFloat(selectedJournal.initialCapital) : 0;
+        return calculateAnalytics(trades, initialCapital);
+    }, [trades, selectedJournal]);
+    
     // --- Subscription Check ---
     useEffect(() => {
         if (userInfo && userInfo.expiryDate && !isPreview) {
@@ -809,6 +993,12 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
             }
         }
     }, [userInfo, isPreview]);
+    
+    // --- Initial Animation ---
+    useEffect(() => {
+        const timer = setTimeout(() => setHasAnimated(true), 50);
+        return () => clearTimeout(timer);
+    }, []);
 
     // --- Responsive handler ---
     useEffect(() => {
@@ -827,78 +1017,24 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
     }, [journals, selectedJournalId]);
 
     useEffect(() => {
-        const selectedJournal = journals.find(j => j.id === selectedJournalId);
         if (trades && trades.length > 0) {
             const latestCapital = [...trades].sort((a,b) => new Date(b.date) - new Date(a.date))[0].capitalDeployed;
             setNewTrade(prev => ({ ...prev, capitalDeployed: latestCapital || '' }));
         } else if (selectedJournal) {
             setNewTrade(prev => ({ ...prev, capitalDeployed: selectedJournal.initialCapital || '' }));
         }
-    }, [trades, journals, selectedJournalId]);
-
-    // --- DERIVED STATE & MEMOIZATION ---
-    const selectedJournal = useMemo(() => journals.find(j => j.id === selectedJournalId), [journals, selectedJournalId]);
-    const summary = useMemo(() => {
-        const initialCapital = selectedJournal ? parseFloat(selectedJournal.initialCapital) : 0;
-        return calculateAnalytics(trades, initialCapital);
-    }, [trades, selectedJournal]);
+    }, [trades, journals, selectedJournalId, selectedJournal]);
     
-    const { todaysPerformance, thisMonthsPerformance, capitalMetrics } = useMemo(() => {
-        const todayStr = new Date().toISOString().split('T')[0];
-        const todayData = summary.dailyPnlData.find(d => d.date === todayStr);
-        let todaysPnl = 0;
-        let todaysRoi = 0;
-        let todaysCapital = 0;
-        if(todayData) {
-            todaysPnl = todayData.pnl;
-            todaysCapital = todayData.capital;
-            if(todayData.capital > 0) {
-                todaysRoi = (todayData.pnl / todayData.capital) * 100;
-            }
-        }
-
-        const currentMonth = new Date().getMonth();
-        const currentYear = new Date().getFullYear();
-        
-        const thisMonthTrades = summary.dailyPnlData.filter(d => {
-            const date = new Date(d.date);
-            return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
-        });
-
-        let monthsPnl = 0;
-        let monthsRoi = 0;
-        let thisMonthsAvgCapital = 0;
-        if(thisMonthTrades.length > 0) {
-            monthsPnl = thisMonthTrades.reduce((sum, day) => sum + day.pnl, 0);
-            const totalCapital = thisMonthTrades.reduce((sum, day) => sum + day.capital, 0);
-            thisMonthsAvgCapital = totalCapital / thisMonthTrades.length;
-            
-            if(thisMonthsAvgCapital > 0) {
-                monthsRoi = (monthsPnl / thisMonthsAvgCapital) * 100;
-            }
-        }
-        
-        return {
-            todaysPerformance: { pnl: todaysPnl, roi: todaysRoi },
-            thisMonthsPerformance: { pnl: monthsPnl, roi: monthsRoi },
-            capitalMetrics: { todaysCapital, thisMonthsAvgCapital }
-        };
-    }, [summary]);
-
     const sortedTradesForDisplay = useMemo(() => [...trades].sort((a,b) => new Date(b.date) - new Date(a.date)), [trades]);
     
     // --- Dynamic chart interval for mobile readability ---
     const tickInterval = useMemo(() => {
         const tradeCount = summary.dailyPnlData?.length || 0;
-        if (windowWidth < 768) { // Mobile breakpoint
-            return Math.max(1, Math.floor(tradeCount / 5)); // Show fewer ticks on mobile
-        }
-        return Math.max(1, Math.floor(tradeCount / 10)); // Show more ticks on desktop
+        if (windowWidth < 768) return Math.max(1, Math.floor(tradeCount / 5));
+        return Math.max(1, Math.floor(tradeCount / 10));
     }, [summary.dailyPnlData, windowWidth]);
 
-    const handlePreviewClick = () => {
-        setModal({ isOpen: true, type: 'alert', message: 'This feature is disabled in the preview. Please register to get full access!' });
-    };
+    const handlePreviewClick = () => setModal({ isOpen: true, type: 'alert', message: 'This feature is disabled in the preview. Please register to get full access!' });
 
     // --- EVENT HANDLERS ---
     const handleInputChange = (e, setState) => {
@@ -937,12 +1073,7 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
                 const newTrades = { ...currentUserData.trades };
                 delete newTrades[selectedJournalId];
 
-                const newData = {
-                    ...currentUserData,
-                    journals: newJournals,
-                    trades: newTrades
-                };
-
+                const newData = { ...currentUserData, journals: newJournals, trades: newTrades };
                 updateData(newData);
                 setSelectedJournalId(newJournals.length > 0 ? newJournals[0].id : '');
                 setModal({ isOpen: false });
@@ -950,23 +1081,57 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
         });
     };
 
-    const handleAddTrade = (e) => {
+    const handleAddTrade = async (e) => {
         e.preventDefault();
         if (isPreview) { handlePreviewClick(); return; }
-        if (!newTrade.date || newTrade.grossPnl === '' || newTrade.taxesAndCharges === '' || newTrade.capitalDeployed === '') { setModal({ isOpen: true, type: 'alert', message: 'Please fill out all fields.' }); return; }
-        
+        if (!newTrade.date || newTrade.grossPnl === '' || newTrade.taxesAndCharges === '' || newTrade.capitalDeployed === '') {
+            setModal({ isOpen: true, type: 'alert', message: 'Please fill out all fields.' });
+            return;
+        }
+    
         const tradeToAdd = {
-            id: generateUniqueId(), date: newTrade.date, day: newTrade.day,
-            grossPnl: parseFloat(newTrade.grossPnl), taxesAndCharges: parseFloat(newTrade.taxesAndCharges),
-            capitalDeployed: parseFloat(newTrade.capitalDeployed), notes: newTrade.notes || ""
+            id: generateUniqueId(),
+            date: newTrade.date,
+            day: newTrade.day,
+            grossPnl: parseFloat(newTrade.grossPnl),
+            taxesAndCharges: parseFloat(newTrade.taxesAndCharges),
+            capitalDeployed: parseFloat(newTrade.capitalDeployed),
+            notes: newTrade.notes || ""
         };
-        const newTradesForJournal = [...(currentUserData.trades?.[selectedJournalId] || []), tradeToAdd];
-        const newData = { ...currentUserData, trades: { ...currentUserData.trades, [selectedJournalId]: newTradesForJournal } };
-        updateData(newData);
-
+    
+        if (userId === '0000000000' || userId === '1111111111') {
+            const newTradesForJournal = [...(currentUserData.trades?.[selectedJournalId] || []), tradeToAdd];
+            const newData = { 
+                ...currentUserData, 
+                trades: { 
+                    ...currentUserData.trades, 
+                    [selectedJournalId]: newTradesForJournal 
+                } 
+            };
+            updateData(newData);
+        } else {
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, userId);
+            const tradePath = `trades.${selectedJournalId}`;
+            try {
+                await updateDoc(docRef, {
+                    [tradePath]: arrayUnion(tradeToAdd)
+                });
+            } catch (error) {
+                console.error("Error adding trade:", error);
+                setModal({ isOpen: true, type: 'alert', message: 'Could not add trade. Please try again.' });
+            }
+        }
+    
         const today = new Date();
         const todayLocal = new Date(today.getTime() - (today.getTimezoneOffset() * 60000));
-        setNewTrade(prev => ({ ...prev, date: todayLocal.toISOString().split('T')[0], day: DAY_NAME_MAPPING[today.getDay()], grossPnl: '', taxesAndCharges: '', notes: '' }));
+        setNewTrade(prev => ({
+            ...prev,
+            date: todayLocal.toISOString().split('T')[0],
+            day: DAY_NAME_MAPPING[today.getDay()],
+            grossPnl: '',
+            taxesAndCharges: '',
+            notes: ''
+        }));
     };
     
     const handleEditTrade = (tradeToEdit) => {
@@ -1027,22 +1192,24 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
         });
     };
     
-    const handleSharePerformance = async () => {
+    const handleShare = async () => {
         if (isPreview) { handlePreviewClick(); return; }
         if (!window.html2canvas) {
             setModal({ isOpen: true, type: 'alert', message: 'Sharing library not loaded. Please try again in a moment.' });
             return;
         }
         setIsLoading(true);
+        // Delay to allow modal to render with new data
+        await new Promise(resolve => setTimeout(resolve, 100));
         try {
             const canvas = await window.html2canvas(shareCardRef.current, {
-                backgroundColor: null, // Use transparent background
+                backgroundColor: null,
                 useCORS: true
             });
             const imageUrl = canvas.toDataURL('image/png');
             const link = document.createElement('a');
             link.href = imageUrl;
-            link.download = `${selectedJournal.name.replace(/\s+/g, '_')}_performance.png`;
+            link.download = `${shareData.title.replace(/\s+/g, '_')}_${shareData.period.replace(/\s+/g, '_')}.png`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -1052,8 +1219,79 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
             setModal({ isOpen: true, type: 'alert', message: 'Could not generate shareable image.' });
         } finally {
             setIsLoading(false);
+            setShareData(null); // Close modal
         }
     };
+
+    const prepareShareData = (type, data) => {
+        if (type === 'daily') {
+            const trade = data;
+            const netPnl = trade.grossPnl - trade.taxesAndCharges;
+            const roi = trade.capitalDeployed > 0 ? (netPnl / trade.capitalDeployed) * 100 : 0;
+            setShareData({
+                title: "Daily Performance",
+                period: new Date(trade.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+                mainMetrics: {
+                    pnlLabel: "Net P&L",
+                    pnlValue: netPnl,
+                    roiValue: roi,
+                    capitalLabel: "Capital Deployed",
+                    capitalValue: trade.capitalDeployed
+                }
+            });
+        } else if (type === 'monthly') {
+            const monthData = data;
+            const monthDate = new Date(monthData.date);
+            const month = monthDate.getMonth();
+            const year = monthDate.getFullYear();
+
+            const dailyBreakdown = summary.dailyPnlData
+                .filter(d => {
+                    const tradeDate = new Date(d.date);
+                    return tradeDate.getMonth() === month && tradeDate.getFullYear() === year;
+                })
+                .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            setShareData({
+                title: "Monthly Performance",
+                period: monthData.month,
+                mainMetrics: {
+                    pnlLabel: "Total Net P&L",
+                    pnlValue: monthData.netPnl,
+                    roiValue: monthData.monthlyReturn,
+                    capitalLabel: "Avg. Capital",
+                    capitalValue: monthData.capitalDeployed
+                },
+                dailyBreakdown: dailyBreakdown
+            });
+        } else if (type === 'latest') {
+            if (sortedTradesForDisplay.length === 0) return;
+            const latestTrade = sortedTradesForDisplay[0];
+            const netPnl = latestTrade.grossPnl - latestTrade.taxesAndCharges;
+            const roi = latestTrade.capitalDeployed > 0 ? (netPnl / latestTrade.capitalDeployed) * 100 : 0;
+            const monthData = summary.monthlyPerformance.find(m => m.month === new Date(latestTrade.date).toLocaleString('default', { month: 'short', year: 'numeric' }));
+
+            setShareData({
+                title: "Performance Snapshot",
+                period: new Date(latestTrade.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+                mainMetrics: {
+                    pnlLabel: "Latest Day's P&L",
+                    pnlValue: netPnl,
+                    roiValue: roi,
+                    capitalLabel: "Capital Deployed",
+                    capitalValue: latestTrade.capitalDeployed
+                },
+                secondaryMetrics: monthData ? {
+                    pnlLabel: `${monthData.month} P&L`,
+                    pnlValue: monthData.netPnl,
+                    roiValue: monthData.monthlyReturn,
+                    capitalLabel: `Avg. Capital (${monthData.month})`,
+                    capitalValue: monthData.capitalDeployed
+                } : null
+            });
+        }
+    };
+
 
     const handleExportCSV = () => {
         if (isPreview) { handlePreviewClick(); return; }
@@ -1096,10 +1334,18 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
             const tradeElement = document.getElementById(`trade-row-${tradeForDate.id}`);
             if (tradeElement) {
                 tradeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                setExpandedTradeId(tradeForDate.id);
+                setExpandedTradeIds(prev => prev.includes(tradeForDate.id) ? prev : [...prev, tradeForDate.id]);
             }
             setTimeout(() => setHighlightedDate(null), 2500);
         }
+    };
+
+    const toggleTradeRow = (tradeId) => {
+        setExpandedTradeIds(prev =>
+            prev.includes(tradeId)
+                ? prev.filter(id => id !== tradeId)
+                : [...prev, tradeId]
+        );
     };
     
     const Icon = memo(({ path, className = "h-6 w-6" }) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d={path} /></svg>);
@@ -1108,31 +1354,78 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex flex-col justify-center items-center z-50 p-4 text-center">
             <h2 className="text-4xl font-extrabold text-red-500 mb-4">Plan Expired</h2>
             <p className="text-lg text-gray-200 mb-8">Your access to the Pro Trader Journal has expired. Please renew your plan to continue.</p>
-            <button onClick={() => setView('plans')} className="px-8 py-4 bg-gradient-to-r from-teal-400 to-cyan-500 text-white font-bold rounded-xl hover:opacity-90 transition-opacity duration-300 text-lg shadow-lg shadow-teal-500/30">
+            <button onClick={handleStartRenewal} className="px-8 py-4 bg-gradient-to-r from-teal-400 to-cyan-500 text-white font-bold rounded-xl hover:opacity-90 transition-opacity duration-300 text-lg shadow-lg shadow-teal-500/30">
                 Renew Your Plan
             </button>
         </div>
     );
 
+    const ProfileModal = () => (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4" onClick={() => setIsProfileModalOpen(false)}>
+            <div className="bg-gray-800 border border-teal-700 rounded-xl p-6 w-full max-w-lg text-left shadow-2xl" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold text-teal-400">My Profile</h2>
+                    <button onClick={() => setIsProfileModalOpen(false)} className="p-1 rounded-full hover:bg-gray-700">
+                        <Icon path="M6 18L18 6M6 6l12 12" className="h-5 w-5 text-gray-400" />
+                    </button>
+                </div>
+                <div className="space-y-4">
+                    <p><strong className="text-gray-400 w-32 inline-block">Access Code:</strong> <span className="font-mono text-teal-300">{userId}</span></p>
+                    <p><strong className="text-gray-400 w-32 inline-block">Current Plan:</strong> <span className="capitalize font-semibold text-white">{userInfo?.plan}</span></p>
+                    <p><strong className="text-gray-400 w-32 inline-block">Expires On:</strong> <span className="font-semibold text-amber-400">{new Date(userInfo?.expiryDate).toLocaleDateString()}</span></p>
+                </div>
+
+                <h3 className="text-xl font-bold text-teal-400 mt-8 mb-4">Payment History</h3>
+                <div className="max-h-48 overflow-y-auto border border-gray-700 rounded-lg">
+                    <table className="min-w-full">
+                        <thead className="sticky top-0 bg-gray-800/95 backdrop-blur-sm"><tr className="text-left text-xs text-gray-400 uppercase"><th className="p-3">Date</th><th className="p-3">Plan</th><th className="p-3">Amount</th><th className="p-3">Payment ID</th></tr></thead>
+                        <tbody>
+                            {userInfo?.paymentHistory && userInfo.paymentHistory.length > 0 ? (
+                                [...userInfo.paymentHistory].reverse().map((p, i) => (
+                                    <tr key={i} className="border-t border-gray-700"><td className="p-3 text-sm">{new Date(p.date).toLocaleDateString()}</td><td className="p-3 text-sm capitalize">{p.plan}</td><td className="p-3 text-sm">₹{p.amount / 100}</td><td className="p-3 text-xs font-mono text-gray-500">{p.paymentId}</td></tr>
+                                ))
+                            ) : (
+                                <tr><td colSpan="4" className="p-6 text-center text-gray-400">No payment history found.</td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+                <div className="mt-8 text-center">
+                    <button onClick={() => { setIsProfileModalOpen(false); handleStartRenewal(); }} className="px-6 py-3 bg-teal-500 text-white font-bold rounded-lg shadow-md hover:bg-teal-600 transition-all duration-300 transform hover:scale-105">
+                        Renew / Upgrade Plan
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+    
+    const ShareModal = () => (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4" onClick={() => setShareData(null)}>
+            <div className="bg-transparent" onClick={e => e.stopPropagation()}>
+                <ShareablePerformanceCard ref={shareCardRef} {...shareData} />
+                <div className="mt-4 text-center">
+                    <button onClick={handleShare} disabled={isLoading} className="px-6 py-3 bg-teal-500 text-white font-bold rounded-lg shadow-md hover:bg-teal-600 transition-all duration-300 transform hover:scale-105">
+                        {isLoading ? 'Downloading...' : 'Download Image'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+
     // --- RENDER ---
     return (
-        <div className="container mx-auto max-w-7xl p-2 sm:p-4 md:p-6 rounded-2xl shadow-[0_0_60px_-15px_rgba(20,184,166,0.2)] bg-gray-900 border border-teal-800/50 text-gray-100 font-sans">
+        <div className="container mx-auto max-w-7xl p-2 sm:p-4 md:p-6 rounded-2xl shadow-[0_0_60px_-15px_rgba(20,184,166,0.2)] bg-gray-900 border border-teal-800/50 text-gray-100 font-sans relative dashboard-container">
             {isExpired && <ExpiryOverlay />}
+            {isProfileModalOpen && <ProfileModal />}
+            {shareData && <ShareModal />}
             
-            {/* Hidden card for screenshotting */}
-            <div className="absolute -left-[9999px] top-auto">
-                <ShareablePerformanceCard 
-                    ref={shareCardRef}
-                    userName={userName}
-                    todaysPerformance={todaysPerformance}
-                    thisMonthsPerformance={thisMonthsPerformance}
-                    capitalMetrics={capitalMetrics}
-                />
-            </div>
-
-            <header className="text-center mb-10 relative">
-                <h1 className="text-2xl sm:text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-500 tracking-wide">PRO TRADER JOURNAL</h1>
-                <button onClick={isPreview ? handlePreviewClick : onLogout} className={`absolute top-0 right-0 px-2 py-1 text-xs sm:text-sm sm:px-4 sm:py-2 bg-red-600/80 text-white font-bold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-red-500 transition-all duration-300 transform hover:scale-105 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>Logout</button>
+            <header className="text-center mb-10 relative flex justify-between items-center">
+                <button onClick={() => setIsProfileModalOpen(true)} className={`px-4 py-2 bg-gray-700/50 text-white font-bold rounded-lg shadow-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-teal-500 transition-all duration-300 transform hover:scale-105 flex items-center gap-2 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                    <Icon path="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" className="h-5 w-5" />
+                    Profile
+                </button>
+                <h1 className="text-lg sm:text-2xl md:text-4xl lg:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-500 tracking-wide absolute left-1/2 -translate-x-1/2">PRO TRADER JOURNAL</h1>
+                <button onClick={isPreview ? handlePreviewClick : onLogout} className={`px-4 py-2 bg-red-600/80 text-white font-bold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-red-500 transition-all duration-300 transform hover:scale-105 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>Logout</button>
             </header>
 
             <div className="bg-gray-800/40 p-4 rounded-xl shadow-lg border border-gray-700/70 mb-10 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -1159,11 +1452,11 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
             )}
 
             {selectedJournal && (
-            <>
+            <div className={hasAnimated ? 'opacity-100' : 'opacity-0'}>
                 {/* Metric Cards Sections */}
-                <div className="mb-10"><h2 className="flex items-center gap-3 text-2xl font-bold text-teal-400 mb-4"><Icon path="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />Account Overview</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><MemoizedMetricCard title="Current Equity" value={formatCurrencyCompact(summary.currentEquity)} colorClass={summary.currentEquity >= summary.startingCapital ? 'text-green-400' : 'text-red-400'} /><MemoizedMetricCard title="Overall P&L" value={formatCurrencyCompact(summary.overallPnl)} colorClass={summary.overallPnl >= 0 ? 'text-green-400' : 'text-red-400'} /><MemoizedMetricCard title="Average Capital" value={formatCurrencyCompact(summary.averageCapital)} /><MemoizedMetricCard title="Return on Investment" value={formatPercentage(summary.roi)} colorClass={summary.roi >= 0 ? 'text-green-400' : 'text-red-400'} /></div></div>
-                <div className="mb-10"><h2 className="flex items-center gap-3 text-2xl font-bold text-teal-400 mb-4"><Icon path="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />Performance Metrics</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><MemoizedMetricCard title="Win Rate" value={formatPercentage(summary.winRate)} colorClass="text-green-400" /><MemoizedMetricCard title="Profit Factor" value={(summary.profitFactor || 0).toFixed(2)} colorClass="text-cyan-400" /><MemoizedMetricCard title="Win/Loss Ratio" value={(summary.winLossRatio || 0).toFixed(2)} colorClass="text-cyan-400" /><MemoizedMetricCard title="Expectancy" value={formatCurrencyCompact(summary.expectancy)} colorClass={(summary.expectancy || 0) >= 0 ? 'text-green-400' : 'text-red-400'} /><MemoizedMetricCard title="Avg. Win" value={formatCurrencyPrecise(summary.avgProfitOnWinDays)} colorClass="text-green-400" /><MemoizedMetricCard title="Avg. Loss" value={formatCurrencyPrecise(summary.avgLossOnLossDays)} colorClass="text-red-400" /><MemoizedMetricCard title="Total Days" value={summary.totalTrades || 0} /><MemoizedMetricCard title="Profitable Days" value={summary.winDays || 0} colorClass="text-green-400" /></div></div>
-                <div className="mb-10"><h2 className="flex items-center gap-3 text-2xl font-bold text-teal-400 mb-4"><Icon path="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />Risk & Extremes</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><MemoizedMetricCard title="Max Drawdown" value={formatPercentage(summary.maxDDPercentage)} colorClass="text-red-400" /><MemoizedMetricCard title="Max Drawdown (Abs)" value={formatCurrencyCompact(summary.maxDrawdown)} colorClass="text-red-400" /><MemoizedMetricCard title="Max Profit" value={formatCurrencyCompact(summary.maxProfit)} colorClass="text-green-400" /><MemoizedMetricCard title="Max Loss" value={formatCurrencyCompact(summary.maxLoss)} colorClass="text-red-400" /><MemoizedMetricCard title="Winning Streak" value={summary.maxWinningStreak || 0} colorClass="text-green-400" /><MemoizedMetricCard title="Losing Streak" value={summary.maxLosingStreak || 0} colorClass="text-red-400" /><MemoizedMetricCard title="Losing Days" value={summary.lossDays || 0} colorClass="text-red-400" /></div></div>
+                <div className="mb-10"><h2 className="flex items-center gap-3 text-2xl font-bold text-teal-400 mb-4 section-header"><Icon path="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />Account Overview</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><MemoizedMetricCard isVisible={hasAnimated} delay={1} title="Current Equity" value={formatCurrencyCompact(summary.currentEquity)} colorClass={summary.currentEquity >= summary.startingCapital ? 'text-green-400' : 'text-red-400'} /><MemoizedMetricCard isVisible={hasAnimated} delay={2} title="Overall P&L" value={formatCurrencyCompact(summary.overallPnl)} colorClass={summary.overallPnl >= 0 ? 'text-green-400' : 'text-red-400'} /><MemoizedMetricCard isVisible={hasAnimated} delay={3} title="Average Capital" value={formatCurrencyCompact(summary.averageCapital)} /><MemoizedMetricCard isVisible={hasAnimated} delay={4} title="Return on Investment" value={formatPercentage(summary.roi)} colorClass={summary.roi >= 0 ? 'text-green-400' : 'text-red-400'} /></div></div>
+                <div className="mb-10"><h2 className="flex items-center gap-3 text-2xl font-bold text-teal-400 mb-4 section-header"><Icon path="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />Performance Metrics</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><MemoizedMetricCard isVisible={hasAnimated} delay={1} title="Win Rate" value={formatPercentage(summary.winRate)} colorClass="text-green-400" /><MemoizedMetricCard isVisible={hasAnimated} delay={2} title="Profit Factor" value={(summary.profitFactor || 0).toFixed(2)} colorClass="text-cyan-400" /><MemoizedMetricCard isVisible={hasAnimated} delay={3} title="Win/Loss Ratio" value={(summary.winLossRatio || 0).toFixed(2)} colorClass="text-cyan-400" /><MemoizedMetricCard isVisible={hasAnimated} delay={4} title="Expectancy" value={formatCurrencyCompact(summary.expectancy)} colorClass={(summary.expectancy || 0) >= 0 ? 'text-green-400' : 'text-red-400'} /><MemoizedMetricCard isVisible={hasAnimated} delay={5} title="Avg. Win" value={formatCurrencyPrecise(summary.avgProfitOnWinDays)} colorClass="text-green-400" /><MemoizedMetricCard isVisible={hasAnimated} delay={6} title="Avg. Loss" value={formatCurrencyPrecise(summary.avgLossOnLossDays)} colorClass="text-red-400" /><MemoizedMetricCard isVisible={hasAnimated} delay={7} title="Total Days" value={summary.totalTrades || 0} /><MemoizedMetricCard isVisible={hasAnimated} delay={8} title="Profitable Days" value={summary.winDays || 0} colorClass="text-green-400" /></div></div>
+                <div className="mb-10"><h2 className="flex items-center gap-3 text-2xl font-bold text-teal-400 mb-4 section-header"><Icon path="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />Risk & Extremes</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><MemoizedMetricCard isVisible={hasAnimated} delay={1} title="Max Drawdown" value={formatPercentage(summary.maxDDPercentage)} colorClass="text-red-400" /><MemoizedMetricCard isVisible={hasAnimated} delay={2} title="Max Drawdown (Abs)" value={formatCurrencyCompact(summary.maxDrawdown)} colorClass="text-red-400" /><MemoizedMetricCard isVisible={hasAnimated} delay={3} title="Max Profit" value={formatCurrencyCompact(summary.maxProfit)} colorClass="text-green-400" /><MemoizedMetricCard isVisible={hasAnimated} delay={4} title="Max Loss" value={formatCurrencyCompact(summary.maxLoss)} colorClass="text-red-400" /><MemoizedMetricCard isVisible={hasAnimated} delay={5} title="Winning Streak" value={summary.maxWinningStreak || 0} colorClass="text-green-400" /><MemoizedMetricCard isVisible={hasAnimated} delay={6} title="Losing Streak" value={summary.maxLosingStreak || 0} colorClass="text-red-400" /><MemoizedMetricCard isVisible={hasAnimated} delay={7} title="Losing Days" value={summary.lossDays || 0} colorClass="text-red-400" /></div></div>
                 
                 {/* Charts Section */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
@@ -1185,7 +1478,7 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
                         <div className="flex flex-wrap justify-between items-center mb-4 gap-4">
                             <h2 className="text-2xl font-bold text-teal-400">Daily History ({trades.length})</h2>
                             <div className="flex gap-2 flex-wrap">
-                                <button onClick={handleSharePerformance} disabled={isLoading} className={`px-4 py-2 bg-violet-600/80 text-white font-bold rounded-lg hover:bg-violet-700 transition-all duration-300 flex items-center gap-2 transform hover:scale-105 disabled:bg-gray-500 disabled:scale-100 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`} aria-label="Share Performance"><Icon path="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" className="h-5 w-5" /><span>Share</span></button>
+                                <button onClick={() => prepareShareData('latest')} disabled={isLoading} className={`px-4 py-2 bg-violet-600/80 text-white font-bold rounded-lg hover:bg-violet-700 transition-all duration-300 flex items-center gap-2 transform hover:scale-105 disabled:bg-gray-500 disabled:scale-100 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`} aria-label="Share Performance"><Icon path="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" className="h-5 w-5" /><span>Share</span></button>
                                 <button onClick={handleLoadSampleData} className={`px-4 py-2 bg-indigo-600/80 text-white font-bold rounded-lg hover:bg-indigo-700 transition-all duration-300 transform hover:scale-105 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>Load Sample</button>
                                 <button onClick={handleDeleteAllTrades} className={`px-3 py-2 bg-red-600/80 text-white font-bold rounded-lg hover:bg-red-700 transition-all duration-300 transform hover:scale-105 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`} aria-label="Delete All Records"><Icon path="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" className="h-5 w-5"/></button>
                                 <button onClick={handleExportCSV} className={`px-4 py-2 bg-teal-500/80 text-white font-bold rounded-lg hover:bg-teal-600 transition-all duration-300 flex items-center gap-2 transform hover:scale-105 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`} aria-label="Export to CSV"><Icon path="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" className="h-5 w-5" /><span className="hidden sm:inline">Export</span></button>
@@ -1196,13 +1489,14 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
                                 <tbody>
                                     {sortedTradesForDisplay.slice(0, visibleTradeCount).map(trade => {
                                         const netPnl = (trade.grossPnl || 0) - (trade.taxesAndCharges || 0);
-                                        const isExpanded = expandedTradeId === trade.id;
+                                        const isExpanded = expandedTradeIds.includes(trade.id);
                                         return (
                                             <React.Fragment key={trade.id}>
-                                                <tr id={`trade-row-${trade.id}`} onClick={() => setExpandedTradeId(isExpanded ? null : trade.id)} className={`border-b border-gray-700/50 hover:bg-gray-800/60 cursor-pointer transition-all duration-300 ${highlightedDate === trade.date ? 'bg-teal-500/20' : ''}`}>
+                                                <tr id={`trade-row-${trade.id}`} onClick={() => toggleTradeRow(trade.id)} className={`border-b border-gray-700/50 hover:bg-gray-800/60 cursor-pointer transition-all duration-300 ${highlightedDate === trade.date ? 'bg-teal-500/20' : ''}`}>
                                                     <td className="p-3">{trade.date}</td>
                                                     <td className={`p-3 font-semibold ${netPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>{formatCurrencyPrecise(netPnl)}</td>
-                                                    <td className="p-3 text-right space-x-2">
+                                                    <td className="p-3 text-right space-x-1">
+                                                        <button onClick={(e) => { e.stopPropagation(); prepareShareData('daily', trade); }} className={`p-1.5 bg-violet-600/20 text-violet-400 hover:bg-violet-500 hover:text-white rounded-md transition-colors transform hover:scale-110 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}><Icon path="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" className="h-4 w-4" /></button>
                                                         <button onClick={(e) => { e.stopPropagation(); handleEditTrade(trade); }} className={`px-3 py-1 bg-blue-600/20 text-blue-400 hover:bg-blue-500 hover:text-white text-xs font-bold rounded-md transition-colors transform hover:scale-110 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>EDIT</button>
                                                         <button onClick={(e) => { e.stopPropagation(); handleDeleteTrade(trade.id); }} className={`px-3 py-1 bg-red-600/20 text-red-400 hover:bg-red-500 hover:text-white text-xs font-bold rounded-md transition-colors transform hover:scale-110 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>DELETE</button>
                                                     </td>
@@ -1223,16 +1517,286 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
                  <footer className="text-center mt-8 pt-6 border-t border-gray-800/50">
                     {userInfo?.expiryDate && <p className="text-amber-400/80 text-xs sm:text-sm">Plan expires on: {new Date(userInfo.expiryDate).toLocaleDateString()}</p>}
                 </footer>
-            </>
+            </div>
             )}
         </div>
     );
 }
 
+const AdminLogin = ({ onAdminLogin, setView, setModal }) => {
+    const [password, setPassword] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setIsLoading(true);
+        try {
+            // Simulate async check with a timeout
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            if (password === ADMIN_PASSWORD) {
+                onAdminLogin();
+            } else {
+                setModal({ isOpen: true, type: 'alert', message: 'Incorrect password.' });
+            }
+        } finally {
+            // This ensures the loading state is always reset, whether login succeeds or fails.
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-gray-950 flex flex-col justify-center items-center p-4 text-gray-100 font-sans">
+             <div className="absolute inset-0 -z-10 h-full w-full bg-gray-950 bg-[radial-gradient(#ef4444_1px,transparent_1px)] [background-size:24px_24px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)]"></div>
+            <div className="w-full max-w-sm">
+                <header className="text-center mb-8">
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-amber-500">Admin Access</h1>
+                    <p className="text-gray-400 mt-2">Enter the administrator password.</p>
+                </header>
+                <div className="bg-gray-900/50 backdrop-blur-sm border border-red-800/50 rounded-2xl shadow-2xl p-8">
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <input 
+                            type="password" 
+                            placeholder="Password" 
+                            value={password} 
+                            onChange={(e) => setPassword(e.target.value)} 
+                            className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-center tracking-widest focus:outline-none focus:ring-2 focus:ring-red-500 transition-all" 
+                            required 
+                        />
+                        <button 
+                            type="submit" 
+                            disabled={isLoading} 
+                            className="w-full p-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-all transform hover:scale-105 disabled:bg-gray-500 disabled:scale-100"
+                        >
+                            {isLoading ? <span className="animate-pulse">Authenticating...</span> : 'Login'}
+                        </button>
+                    </form>
+                    <p className="text-center text-gray-500 mt-6 text-sm">
+                        <button onClick={() => setView('landing')} className="hover:text-gray-300 transition-colors">
+                            &larr; Back to Home
+                        </button>
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+// --- ADMIN PANEL COMPONENT (UPDATED) ---
+const AdminPanel = ({ db, setView, setModal }) => {
+    const [coupons, setCoupons] = useState([]);
+    const [users, setUsers] = useState([]);
+    const [newCoupon, setNewCoupon] = useState({ code: '', discountPercentage: 10, isActive: true });
+    const [isLoadingCoupons, setIsLoadingCoupons] = useState(true);
+    const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+
+    // Fetch coupons and users on component mount
+    useEffect(() => {
+        if (!db) return;
+
+        // Fetch Coupons
+        const couponsRef = collection(db, 'artifacts', appId, 'public', 'data', COUPONS_COLLECTION_NAME);
+        const unsubCoupons = onSnapshot(couponsRef, (querySnapshot) => {
+            const couponsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setCoupons(couponsData);
+            setIsLoadingCoupons(false);
+        }, (error) => {
+            console.error("Error fetching coupons:", error);
+            setIsLoadingCoupons(false);
+            setModal({ isOpen: true, type: 'alert', message: 'Could not fetch coupon data.' });
+        });
+
+        // Fetch Users
+        const usersRef = collection(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME);
+        const unsubUsers = onSnapshot(usersRef, (querySnapshot) => {
+            const usersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setUsers(usersData);
+            setIsLoadingUsers(false);
+        }, (error) => {
+            console.error("Error fetching users:", error);
+            setIsLoadingUsers(false);
+            setModal({ isOpen: true, type: 'alert', message: 'Could not fetch user data.' });
+        });
+
+        return () => {
+            unsubCoupons();
+            unsubUsers();
+        };
+    }, [db, setModal]);
+
+    const handleInputChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setNewCoupon(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    };
+
+    const handleAddCoupon = async (e) => {
+        e.preventDefault();
+        if (!db || !newCoupon.code || !newCoupon.discountPercentage) {
+            setModal({ isOpen: true, type: 'alert', message: 'Please fill all fields.' });
+            return;
+        }
+        const couponId = newCoupon.code.trim().toUpperCase();
+        const couponRef = doc(db, 'artifacts', appId, 'public', 'data', COUPONS_COLLECTION_NAME, couponId);
+        
+        try {
+            await setDoc(couponRef, {
+                discountPercentage: Number(newCoupon.discountPercentage),
+                isActive: newCoupon.isActive,
+                createdAt: new Date().toISOString()
+            });
+            setNewCoupon({ code: '', discountPercentage: 10, isActive: true });
+        } catch (error) {
+            console.error("Error adding coupon:", error);
+            setModal({ isOpen: true, type: 'alert', message: 'Failed to add coupon.' });
+        }
+    };
+
+    const toggleCouponStatus = async (coupon) => {
+        if (!db) return;
+        const couponRef = doc(db, 'artifacts', appId, 'public', 'data', COUPONS_COLLECTION_NAME, coupon.id);
+        try {
+            await updateDoc(couponRef, { isActive: !coupon.isActive });
+        } catch (error) {
+            console.error("Error updating coupon status:", error);
+            setModal({ isOpen: true, type: 'alert', message: 'Failed to update coupon status.' });
+        }
+    };
+
+    const handleDeleteCoupon = (couponId) => {
+        if (!db) return;
+        setModal({
+            isOpen: true,
+            type: 'confirm',
+            message: `Are you sure you want to delete coupon ${couponId}?`,
+            onConfirm: async () => {
+                const couponRef = doc(db, 'artifacts', appId, 'public', 'data', COUPONS_COLLECTION_NAME, couponId);
+                try {
+                    await deleteDoc(couponRef);
+                    setModal({ isOpen: false });
+                } catch (error) {
+                    console.error("Error deleting coupon:", error);
+                    setModal({ isOpen: true, type: 'alert', message: 'Could not delete coupon.' });
+                }
+            }
+        });
+    };
+
+    return (
+        <div className="min-h-screen bg-gray-950 text-gray-100 p-4 sm:p-8">
+            <div className="max-w-7xl mx-auto">
+                <header className="flex justify-between items-center mb-8">
+                    <h1 className="text-2xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-amber-500">Admin Panel</h1>
+                    <button onClick={() => setView('landing')} className="px-4 py-2 bg-gray-700 text-white font-bold rounded-lg hover:bg-gray-600 transition-colors">
+                        &larr; Back to App
+                    </button>
+                </header>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* User Management Section */}
+                    <div className="bg-gray-900/50 border border-gray-700 rounded-xl p-6">
+                        <h2 className="text-2xl font-bold text-teal-400 mb-4">User Accounts ({users.length})</h2>
+                        {isLoadingUsers ? <p>Loading users...</p> : (
+                            <div className="overflow-auto max-h-[600px]">
+                                <table className="min-w-full">
+                                    <thead className="sticky top-0 bg-gray-900/80 backdrop-blur-sm">
+                                        <tr className="border-b border-gray-700 text-left text-sm uppercase text-gray-400">
+                                            <th className="p-3">Access Code</th>
+                                            <th className="p-3">Plan</th>
+                                            <th className="p-3">Expiry</th>
+                                            <th className="p-3">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {users.map(user => {
+                                            const isExpired = new Date().getTime() > user.userInfo.expiryDate;
+                                            return (
+                                                <tr key={user.id} className="border-b border-gray-800">
+                                                    <td className="p-3 font-mono text-teal-300">{user.id}</td>
+                                                    <td className="p-3 capitalize">{user.userInfo.plan}</td>
+                                                    <td className="p-3 text-sm">{new Date(user.userInfo.expiryDate).toLocaleDateString()}</td>
+                                                    <td className="p-3">
+                                                        <span className={`px-2 py-1 text-xs font-bold rounded-full ${!isExpired ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                                                            {!isExpired ? 'Active' : 'Expired'}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                    
+                    {/* Coupon Management Section */}
+                    <div>
+                        <div className="bg-gray-900/50 border border-gray-700 rounded-xl p-6 mb-8">
+                            <h2 className="text-2xl font-bold text-teal-400 mb-4">Add New Coupon</h2>
+                            <form onSubmit={handleAddCoupon} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                                <div className="md:col-span-1">
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">Coupon Code</label>
+                                    <input type="text" name="code" value={newCoupon.code} onChange={handleInputChange} className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg" required />
+                                </div>
+                                 <div className="md:col-span-1">
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">Discount (%)</label>
+                                    <input type="number" name="discountPercentage" value={newCoupon.discountPercentage} onChange={handleInputChange} className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg" required min="1" max="100"/>
+                                </div>
+                                <div className="flex items-center justify-center h-full pb-2">
+                                     <label className="flex items-center gap-2 text-gray-300">
+                                        <input type="checkbox" name="isActive" checked={newCoupon.isActive} onChange={handleInputChange} className="h-5 w-5 rounded bg-gray-700 border-gray-600 text-teal-500 focus:ring-teal-500" />
+                                        Active
+                                    </label>
+                                </div>
+                                <button type="submit" className="w-full p-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">Add Coupon</button>
+                            </form>
+                        </div>
+
+                        <div className="bg-gray-900/50 border border-gray-700 rounded-xl p-6">
+                             <h2 className="text-2xl font-bold text-teal-400 mb-4">Manage Coupons ({coupons.length})</h2>
+                             {isLoadingCoupons ? <p>Loading coupons...</p> : (
+                                 <div className="overflow-x-auto max-h-[400px]">
+                                     <table className="min-w-full">
+                                         <thead className="sticky top-0 bg-gray-900/80 backdrop-blur-sm">
+                                             <tr className="border-b border-gray-700 text-left text-sm uppercase text-gray-400">
+                                                 <th className="p-3">Code</th>
+                                                 <th className="p-3">Discount</th>
+                                                 <th className="p-3">Status</th>
+                                                 <th className="p-3 text-right">Actions</th>
+                                             </tr>
+                                         </thead>
+                                         <tbody>
+                                             {coupons.map(coupon => (
+                                                 <tr key={coupon.id} className="border-b border-gray-800">
+                                                     <td className="p-3 font-mono text-teal-300">{coupon.id}</td>
+                                                     <td className="p-3">{coupon.discountPercentage}%</td>
+                                                     <td className="p-3">
+                                                         <span className={`px-2 py-1 text-xs font-bold rounded-full ${coupon.isActive ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>
+                                                             {coupon.isActive ? 'Active' : 'Inactive'}
+                                                         </span>
+                                                     </td>
+                                                     <td className="p-3 text-right space-x-2">
+                                                         <button onClick={() => toggleCouponStatus(coupon)} className="px-3 py-1 text-xs font-semibold rounded-md bg-blue-600/20 text-blue-400 hover:bg-blue-500 hover:text-white transition-colors">Toggle</button>
+                                                         <button onClick={() => handleDeleteCoupon(coupon.id)} className="px-3 py-1 text-xs font-semibold rounded-md bg-red-600/20 text-red-400 hover:bg-red-500 hover:text-white transition-colors">Delete</button>
+                                                     </td>
+                                                 </tr>
+                                             ))}
+                                         </tbody>
+                                     </table>
+                                 </div>
+                             )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 // --- MAIN APP COMPONENT ---
 const App = () => {
-    const [view, setView] = useState('login'); // login, register, plans, dashboard
+    const [view, setView] = useState('landing'); // landing, login, register, plans, dashboard, admin, admin-login
     const [viewHistory, setViewHistory] = useState([]);
     const [registrationDetails, setRegistrationDetails] = useState(null);
     const [allData, setAllData] = useState(null);
@@ -1242,9 +1806,16 @@ const App = () => {
     const [notification, setNotification] = useState({ show: false, message: '' });
     const [db, setDb] = useState(null);
     const [auth, setAuth] = useState(null);
+    const [isRenewalFlow, setIsRenewalFlow] = useState(false);
+    const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 
     // Function to change view and manage history for back button
     const navigateTo = (newView) => {
+        if (newView === 'admin' && !isAdminAuthenticated) {
+             setViewHistory(prev => [...prev, view]);
+             setView('admin-login');
+             return;
+        }
         setViewHistory(prev => [...prev, view]);
         setView(newView);
     };
@@ -1252,10 +1823,11 @@ const App = () => {
     const goBack = () => {
         const previousView = viewHistory[viewHistory.length - 1];
         if (previousView) {
+            setIsRenewalFlow(false); // Reset renewal flow on back navigation
             setViewHistory(prev => prev.slice(0, -1));
             setView(previousView);
         } else {
-            setView('login'); // Fallback to login
+            setView('landing'); // Fallback to landing
         }
     };
 
@@ -1310,10 +1882,12 @@ const App = () => {
                 if (savedCode) {
                     setLoggedInCode(savedCode);
                     navigateTo('dashboard');
+                } else {
+                    setView('landing'); // Default to landing if not logged in
                 }
             } else {
                 setLoggedInCode(null);
-                setView('login');
+                setView('landing');
                 setViewHistory([]);
             }
             setIsLoading(false);
@@ -1332,7 +1906,8 @@ const App = () => {
                 userInfo: { 
                     name: 'Test User (Expired)', 
                     plan: 'expired', 
-                    expiryDate: new Date().getTime() - 1000 
+                    expiryDate: new Date().getTime() - 1000,
+                    paymentHistory: []
                 },
                 journals: [sampleJournal],
                 trades: { 'sample_journal_1': sampleTrades }
@@ -1351,7 +1926,8 @@ const App = () => {
                 userInfo: { 
                     name: 'Test User (Active)', 
                     plan: 'yearly', 
-                    expiryDate: new Date().getTime() + 365 * 24 * 60 * 60 * 1000 
+                    expiryDate: new Date().getTime() + 365 * 24 * 60 * 60 * 1000,
+                    paymentHistory: [{ paymentId: 'pay_sample', plan: 'yearly', amount: 49900, date: new Date().toISOString() }]
                 },
                 journals: [sampleJournal],
                 trades: { 'sample_journal_2': sampleTrades }
@@ -1436,7 +2012,9 @@ const App = () => {
     const handleLogout = () => {
         localStorage.removeItem(SESSION_KEY);
         setLoggedInCode(null);
-        setView('login');
+        setIsRenewalFlow(false);
+        setIsAdminAuthenticated(false); // Logout from admin as well
+        setView('landing');
         setViewHistory([]);
     };
     
@@ -1446,7 +2024,7 @@ const App = () => {
         setTimeout(() => setNotification({ show: false, message: '' }), 3000);
     };
 
-    const handlePlanActivation = async (planType, amountInPaise) => {
+    const handlePlanPayment = async (planType, amountInPaise) => {
         if (RAZORPAY_KEY_ID === 'YOUR_KEY_ID_HERE' || !window.Razorpay) {
             setModal({isOpen: true, type: 'alert', message: 'Payment gateway is not configured. Please contact the administrator.'});
             return;
@@ -1459,37 +2037,68 @@ const App = () => {
             amount: amountInPaise,
             currency: "INR",
             name: "Pro Trader Journal",
-            description: `Activate ${planType} Plan`,
+            description: isRenewalFlow ? `Renew ${planType} Plan` : `Activate ${planType} Plan`,
             handler: async (response) => {
-                const { accessCode, password } = registrationDetails;
-                const days = planType === 'monthly' ? 30 : 365;
-                const expiryDate = new Date().getTime() + days * 24 * 60 * 60 * 1000;
-
-                const initialData = { 
-                    userInfo: { 
-                        password: password,
-                        createdAt: new Date().toISOString(),
-                        plan: planType,
-                        paymentId: response.razorpay_payment_id,
-                        expiryDate: expiryDate
-                    }, 
-                    journals: [], 
-                    trades: {} 
+                const newPaymentRecord = {
+                    paymentId: response.razorpay_payment_id,
+                    plan: planType,
+                    amount: amountInPaise,
+                    date: new Date().toISOString()
                 };
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, accessCode);
-                await setDoc(docRef, initialData);
-                
-                showSuccessNotification('Payment Successful! Account Activated.');
-                await handleLogin(accessCode, password);
+
+                if (isRenewalFlow) {
+                    // --- RENEWAL LOGIC ---
+                    const days = planType === 'monthly' ? 30 : 365;
+                    const newExpiryDate = new Date().getTime() + days * 24 * 60 * 60 * 1000;
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, loggedInCode);
+                    const docSnap = await getDoc(docRef);
+
+                    if (docSnap.exists()) {
+                        const existingData = docSnap.data();
+                        const paymentHistory = existingData.userInfo.paymentHistory || [];
+                        const updatedUserInfo = {
+                            ...existingData.userInfo,
+                            plan: planType,
+                            expiryDate: newExpiryDate,
+                            paymentHistory: [...paymentHistory, newPaymentRecord]
+                        };
+                        await setDoc(docRef, { userInfo: updatedUserInfo }, { merge: true });
+                        showSuccessNotification('Plan Renewed Successfully!');
+                        setIsRenewalFlow(false);
+                        setView('dashboard');
+                    } else {
+                        setModal({isOpen: true, type: 'alert', message: 'Could not find your account to renew. Please contact support.'});
+                    }
+                } else {
+                    // --- NEW REGISTRATION LOGIC ---
+                    const { accessCode, password } = registrationDetails;
+                    const days = planType === 'monthly' ? 30 : 365;
+                    const expiryDate = new Date().getTime() + days * 24 * 60 * 60 * 1000;
+                    const initialData = { 
+                        userInfo: { 
+                            password: password,
+                            createdAt: new Date().toISOString(),
+                            plan: planType,
+                            expiryDate: expiryDate,
+                            paymentHistory: [newPaymentRecord]
+                        }, 
+                        journals: [], 
+                        trades: {} 
+                    };
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, accessCode);
+                    await setDoc(docRef, initialData);
+                    showSuccessNotification('Payment Successful! Account Activated.');
+                    await handleLogin(accessCode, password);
+                }
                 setIsLoading(false);
             },
             prefill: {
-                name: "New Trader",
+                name: "Trader",
                 email: "trader@example.com",
                 contact: "9999999999"
             },
             notes: {
-                accessCode: registrationDetails.accessCode
+                accessCode: isRenewalFlow ? loggedInCode : registrationDetails.accessCode
             },
             theme: {
                 color: "#14b8a6"
@@ -1510,13 +2119,21 @@ const App = () => {
         rzp.open();
     };
 
+    const handleStartRenewal = () => {
+        setIsRenewalFlow(true);
+        navigateTo('plans');
+    };
+
     const handleModalClose = () => setModal({ isOpen: false });
     
     const renderView = () => {
         switch(view) {
+            case 'landing': return <LandingPage setView={navigateTo} />;
             case 'register': return <RegisterScreen setView={navigateTo} setRegistrationDetails={setRegistrationDetails} db={db} setModal={setModal} goBack={goBack} />;
-            case 'plans': return <PlansScreen handlePlanActivation={handlePlanActivation} setModal={setModal} goBack={goBack} />;
-            case 'dashboard': return <Dashboard allData={allData} updateData={updateData} userId={loggedInCode} onLogout={handleLogout} modal={modal} setModal={setModal} db={db} setView={navigateTo} />;
+            case 'plans': return <PlansScreen onPlanSelect={handlePlanPayment} setModal={setModal} goBack={goBack} db={db} />;
+            case 'dashboard': return <Dashboard allData={allData} updateData={updateData} userId={loggedInCode} onLogout={handleLogout} modal={modal} setModal={setModal} db={db} setView={navigateTo} handleStartRenewal={handleStartRenewal} />;
+            case 'admin-login': return <AdminLogin onAdminLogin={() => { setIsAdminAuthenticated(true); navigateTo('admin'); }} setView={navigateTo} setModal={setModal} />;
+            case 'admin': return isAdminAuthenticated ? <AdminPanel db={db} setView={navigateTo} setModal={setModal} /> : <AdminLogin onAdminLogin={() => { setIsAdminAuthenticated(true); navigateTo('admin'); }} setView={navigateTo} setModal={setModal} />;
             case 'login': default: return <LoginScreen onLogin={handleLogin} setModal={setModal} setView={navigateTo} db={db} />;
         }
     };
@@ -1549,10 +2166,10 @@ const App = () => {
                 
                 /* --- Global Fluidity & Transitions --- */
                 * {
-                    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, opacity 0.3s ease;
+                    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
                 }
                 button, select, input, textarea {
-                     transition: all 0.2s ease-in-out;
+                     transition: all 0.15s ease-in-out;
                 }
 
                 .animate-fade-in-out { animation: fadeInOut 3s forwards; }
@@ -1570,6 +2187,67 @@ const App = () => {
                     50%, 68% { transform: translateY(-50%); }
                     70%, 88% { transform: translateY(-66.66%); }
                     90%, 100% { transform: translateY(-83.33%); }
+                }
+                
+                .dashboard-container::before {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(20, 184, 166, 0.15), transparent 80%);
+                    pointer-events: none;
+                    opacity: 0;
+                    transition: opacity 0.2s ease-out;
+                }
+                .dashboard-container:hover::before {
+                    opacity: 1;
+                }
+                
+                .section-header:hover svg {
+                    transform: rotate(10deg) scale(1.1);
+                }
+                .section-header svg {
+                    transition: transform 0.2s ease-in-out;
+                }
+                
+                @keyframes fadeInUp {
+                    from { opacity: 0; transform: translateY(15px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .fade-in-up { animation: fadeInUp 0.25s ease-out forwards; opacity: 0; }
+
+                .feature-card {
+                    opacity: 0;
+                    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+                }
+                .feature-card.from-left { transform: translateX(-50px); }
+                .feature-card.from-right { transform: translateX(50px); }
+                .feature-card.is-visible {
+                    opacity: 1;
+                    transform: translateX(0);
+                }
+                
+                .animate-ticker {
+                    animation: ticker-scroll 60s linear infinite;
+                }
+                @keyframes ticker-scroll {
+                    0% { transform: translateX(0%); }
+                    100% { transform: translateX(-50%); }
+                }
+
+                @keyframes tilt {
+                    0%, 100% { transform: rotate(0deg); }
+                    50% { transform: rotate(0.5deg); }
+                }
+                .animate-tilt {
+                    animation: tilt 10s ease-in-out infinite;
+                }
+                
+                .bg-grid {
+                    background-image: linear-gradient(to right, rgba(20, 184, 166, 0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(20, 184, 166, 0.1) 1px, transparent 1px);
+                    background-size: 2rem 2rem;
                 }
             `}</style>
             <div className="min-h-screen bg-gray-950">
