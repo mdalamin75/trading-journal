@@ -5,6 +5,7 @@ import {
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
 import { getFirestore, doc, onSnapshot, setDoc, getDoc, updateDoc, arrayUnion, collection, getDocs, deleteDoc } from "firebase/firestore";
+import html2canvas from 'html2canvas';
 
 
 // --- CONSTANTS & CONFIG ---
@@ -29,7 +30,7 @@ const firebaseConfig = {
 	appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-const appId = import.meta.env.VITE_APP_ID || "pro-trader-journal";
+const appId = import.meta.env.VITE_APP_ID || "default-app-id";
 
 
 // --- HELPER FUNCTIONS ---
@@ -878,17 +879,46 @@ const ShareablePerformanceCard = React.forwardRef(({
 
     const StatCard = ({ label, value, roi, isPnl = false }) => {
         const isProfit = value >= 0;
-        const colorClass = isPnl ? (isProfit ? 'text-emerald-400' : 'text-red-500') : 'text-cyan-400';
-        const bgColorClass = isPnl ? (isProfit ? 'bg-emerald-900/50' : 'bg-red-900/50') : 'bg-cyan-900/50';
+        const textColor = isPnl ? (isProfit ? '#34d399' : '#ef4444') : '#22d3ee';
+        const bgColor = isPnl ? (isProfit ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)') : 'rgba(34, 211, 238, 0.1)';
+        const borderColor = isPnl ? (isProfit ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)') : 'rgba(34, 211, 238, 0.3)';
         
         return (
-            <div className={`p-4 rounded-xl ${bgColorClass} border border-gray-700/50 flex flex-col`}>
-                <p className="text-sm text-gray-400 font-medium mb-2">{label}</p>
-                <div className="flex-grow" />
+            <div style={{
+                padding: '16px',
+                borderRadius: '12px',
+                backgroundColor: bgColor,
+                border: `1px solid ${borderColor}`,
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%'
+            }}>
+                <p style={{
+                    fontSize: '14px',
+                    color: '#9ca3af',
+                    fontWeight: '500',
+                    marginBottom: '8px',
+                    margin: '0 0 8px 0'
+                }}>{label}</p>
+                <div style={{ flexGrow: 1 }} />
                 <div>
-                    <p className={`text-2xl font-bold leading-tight ${colorClass}`}>{formatCurrencyNoDecimals(value)}</p>
+                    <p style={{
+                        fontSize: '24px',
+                        fontWeight: 'bold',
+                        lineHeight: '1.2',
+                        color: textColor,
+                        margin: 0
+                    }}>{formatCurrencyNoDecimals(value)}</p>
                     {roi !== undefined && (
-                        <div className={`flex items-center text-sm font-semibold ${colorClass} mt-1 gap-1`}>
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            color: textColor,
+                            marginTop: '4px',
+                            gap: '4px'
+                        }}>
                             <span>{formatPercentage(roi)} ROI</span>
                         </div>
                     )}
@@ -898,31 +928,93 @@ const ShareablePerformanceCard = React.forwardRef(({
     };
 
     return (
-        <div ref={ref} className="bg-gradient-to-br from-gray-900 to-black text-white p-6 rounded-2xl w-[480px] font-sans border border-teal-700/30 shadow-2xl shadow-teal-500/10 overflow-hidden relative">
-            <div className="absolute -top-20 -right-20 w-60 h-60 bg-teal-500/10 rounded-full filter blur-3xl"></div>
-            <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-violet-500/10 rounded-full filter blur-3xl"></div>
+        <div ref={ref} style={{
+            backgroundColor: '#1f2937',
+            color: 'white',
+            padding: '24px',
+            borderRadius: '16px',
+            width: '480px',
+            fontFamily: 'system-ui, -apple-system, sans-serif',
+            border: '1px solid rgba(20, 184, 166, 0.3)',
+            boxShadow: '0 25px 50px -12px rgba(20, 184, 166, 0.1)',
+            overflow: 'hidden',
+            position: 'relative'
+        }}>
+            {/* Background decorative elements */}
+            <div style={{
+                position: 'absolute',
+                top: '-80px',
+                right: '-80px',
+                width: '240px',
+                height: '240px',
+                backgroundColor: 'rgba(20, 184, 166, 0.1)',
+                borderRadius: '50%',
+                filter: 'blur(48px)'
+            }}></div>
+            <div style={{
+                position: 'absolute',
+                bottom: '-80px',
+                left: '-80px',
+                width: '240px',
+                height: '240px',
+                backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                borderRadius: '50%',
+                filter: 'blur(48px)'
+            }}></div>
 
-            <div className="relative z-10">
-                <header className="flex justify-between items-start pb-4 border-b border-gray-700/50">
+            <div style={{ position: 'relative', zIndex: 10 }}>
+                <header style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    paddingBottom: '16px',
+                    borderBottom: '1px solid rgba(55, 65, 81, 0.5)'
+                }}>
                     <div>
-                        <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-400">
-                            {title}
-                        </h2>
-                        <p className="text-md text-gray-400">{period}</p>
+                        <h2 style={{
+                            fontSize: '30px',
+                            fontWeight: '800',
+                            color: '#5eead4',
+                            margin: '0 0 8px 0'
+                        }}>{title}</h2>
+                        <p style={{
+                            fontSize: '16px',
+                            color: '#9ca3af',
+                            margin: 0
+                        }}>{period}</p>
                     </div>
-                    <div className="text-right">
-                        <p className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-gray-200 to-gray-400">PRO TRADER JOURNAL</p>
-                        <p className="text-xs text-teal-400/70 tracking-widest">www.xponential.me</p>
+                    <div style={{ textAlign: 'right' }}>
+                        <p style={{
+                            fontWeight: 'bold',
+                            fontSize: '18px',
+                            color: '#e5e7eb',
+                            margin: '0 0 4px 0'
+                        }}>PRO TRADER JOURNAL</p>
+                        <p style={{
+                            fontSize: '12px',
+                            color: '#5eead4',
+                            letterSpacing: '0.1em',
+                            margin: 0
+                        }}>www.xponential.me</p>
                     </div>
                 </header>
 
-                <main className="my-6">
-                    <div className="grid grid-cols-2 gap-4">
+                <main style={{ margin: '24px 0' }}>
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '16px'
+                    }}>
                         <StatCard label={mainMetrics.pnlLabel} value={mainMetrics.pnlValue} roi={mainMetrics.roiValue} isPnl={true} />
                         <StatCard label={mainMetrics.capitalLabel} value={mainMetrics.capitalValue} />
                     </div>
                     {secondaryMetrics && (
-                         <div className="grid grid-cols-2 gap-4 mt-4">
+                         <div style={{
+                             display: 'grid',
+                             gridTemplateColumns: '1fr 1fr',
+                             gap: '16px',
+                             marginTop: '16px'
+                         }}>
                             <StatCard label={secondaryMetrics.pnlLabel} value={secondaryMetrics.pnlValue} roi={secondaryMetrics.roiValue} isPnl={true} />
                             <StatCard label={secondaryMetrics.capitalLabel} value={secondaryMetrics.capitalValue} />
                         </div>
@@ -930,13 +1022,40 @@ const ShareablePerformanceCard = React.forwardRef(({
                 </main>
                 
                 {dailyBreakdown && dailyBreakdown.length > 0 && (
-                    <div className="mt-4 border-t border-gray-700/50 pt-3">
-                        <h3 className="text-lg font-bold text-teal-300 mb-2 text-center">Daily Breakdown</h3>
-                        <div className="max-h-32 overflow-y-auto text-xs space-y-1 pr-2">
+                    <div style={{
+                        marginTop: '16px',
+                        borderTop: '1px solid rgba(55, 65, 81, 0.5)',
+                        paddingTop: '12px'
+                    }}>
+                        <h3 style={{
+                            fontSize: '18px',
+                            fontWeight: 'bold',
+                            color: '#5eead4',
+                            margin: '0 0 8px 0',
+                            textAlign: 'center'
+                        }}>Daily Breakdown</h3>
+                        <div style={{
+                            maxHeight: '128px',
+                            overflowY: 'auto',
+                            fontSize: '12px',
+                            gap: '4px',
+                            paddingRight: '8px'
+                        }}>
                             {dailyBreakdown.map(day => (
-                                <div key={day.date} className="flex justify-between items-center bg-gray-800/50 p-1 rounded">
+                                <div key={day.date} style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    backgroundColor: 'rgba(31, 41, 55, 0.5)',
+                                    padding: '4px',
+                                    borderRadius: '4px',
+                                    marginBottom: '4px'
+                                }}>
                                     <span>{new Date(day.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
-                                    <span className={day.pnl >= 0 ? 'text-emerald-400 font-mono' : 'text-red-500 font-mono'}>
+                                    <span style={{
+                                        color: day.pnl >= 0 ? '#34d399' : '#ef4444',
+                                        fontFamily: 'monospace'
+                                    }}>
                                         {formatCurrencyNoDecimals(day.pnl)}
                                     </span>
                                 </div>
@@ -945,8 +1064,17 @@ const ShareablePerformanceCard = React.forwardRef(({
                     </div>
                 )}
                 
-                <footer className="text-center mt-4 border-t border-gray-700/50 pt-3">
-                    <p className="text-xs text-gray-500">Track your journey to profitability. Generated by Pro Trader Journal.</p>
+                <footer style={{
+                    textAlign: 'center',
+                    marginTop: '16px',
+                    borderTop: '1px solid rgba(55, 65, 81, 0.5)',
+                    paddingTop: '12px'
+                }}>
+                    <p style={{
+                        fontSize: '12px',
+                        color: '#6b7280',
+                        margin: 0
+                    }}>Track your journey to profitability. Generated by Pro Trader Journal.</p>
                 </footer>
             </div>
         </div>
@@ -1194,18 +1322,226 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
     
     const handleShare = async () => {
         if (isPreview) { handlePreviewClick(); return; }
-        if (!window.html2canvas) {
-            setModal({ isOpen: true, type: 'alert', message: 'Sharing library not loaded. Please try again in a moment.' });
+        
+        // Check if the ref is available
+        if (!shareCardRef.current) {
+            setModal({ isOpen: true, type: 'alert', message: 'Share card element not found. Please try again.' });
             return;
         }
+        
         setIsLoading(true);
-        // Delay to allow modal to render with new data
-        await new Promise(resolve => setTimeout(resolve, 100));
+        
         try {
-            const canvas = await window.html2canvas(shareCardRef.current, {
-                backgroundColor: null,
-                useCORS: true
+            console.log('Starting custom canvas generation...');
+            console.log('Share data:', shareData);
+            console.log('Share data structure:', {
+                title: shareData?.title,
+                period: shareData?.period,
+                mainMetrics: shareData?.mainMetrics,
+                secondaryMetrics: shareData?.secondaryMetrics,
+                dailyBreakdown: shareData?.dailyBreakdown
             });
+            
+            // Validate share data
+            if (!shareData || !shareData.title || !shareData.period) {
+                throw new Error('Invalid share data. Please try again.');
+            }
+            
+            // Create canvas manually - this is more reliable than html2canvas
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas dimensions (2x for high quality)
+            const width = 960; // 480px * 2
+            const height = 800; // Approximate height * 2
+            canvas.width = width;
+            canvas.height = height;
+            
+            // Fill background
+            ctx.fillStyle = '#1f2937';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Add decorative background elements
+            ctx.fillStyle = 'rgba(20, 184, 166, 0.1)';
+            ctx.beginPath();
+            ctx.arc(width - 160, 160, 240, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            ctx.fillStyle = 'rgba(139, 92, 246, 0.1)';
+            ctx.beginPath();
+            ctx.arc(160, height - 160, 240, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Header - Left side
+            ctx.fillStyle = '#5eead4';
+            ctx.font = 'bold 60px system-ui';
+            ctx.textAlign = 'left';
+            ctx.fillText('Performance', 48, 100);
+            ctx.fillText('Snapshot', 48, 170);
+            
+            ctx.fillStyle = '#9ca3af';
+            ctx.font = '32px system-ui';
+            ctx.fillText(shareData.period, 48, 210);
+            
+            // Right side header
+            ctx.fillStyle = '#e5e7eb';
+            ctx.font = 'bold 28px system-ui';
+            ctx.textAlign = 'right';
+            ctx.fillText('PRO TRADER', width - 48, 100);
+            ctx.fillText('JOURNAL', width - 48, 130);
+            
+            ctx.fillStyle = '#5eead4';
+            ctx.font = '20px system-ui';
+            ctx.fillText('www.xponential.me', width - 48, 160);
+            
+            // Main metrics grid
+            const metricsY = 250;
+            const cardWidth = 400;
+            const cardHeight = 140;
+            const gap = 40;
+            
+            // First row - P&L and Capital
+            if (shareData.mainMetrics) {
+                // P&L Card
+                const pnlX = 48;
+                const isPnlProfit = shareData.mainMetrics.pnlValue >= 0;
+                ctx.fillStyle = isPnlProfit ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
+                ctx.fillRect(pnlX, metricsY, cardWidth, cardHeight);
+                ctx.strokeStyle = isPnlProfit ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(pnlX, metricsY, cardWidth, cardHeight);
+                
+                // P&L Label
+                ctx.fillStyle = '#9ca3af';
+                ctx.font = '24px system-ui';
+                ctx.textAlign = 'left';
+                ctx.fillText(shareData.mainMetrics.pnlLabel, pnlX + 24, metricsY + 35);
+                
+                // P&L Value
+                ctx.fillStyle = isPnlProfit ? '#34d399' : '#ef4444';
+                ctx.font = 'bold 44px system-ui';
+                ctx.fillText(formatCurrencyCompact(shareData.mainMetrics.pnlValue), pnlX + 24, metricsY + 75);
+                
+                // ROI if available
+                if (shareData.mainMetrics.roiValue !== undefined) {
+                    ctx.fillStyle = isPnlProfit ? '#34d399' : '#ef4444';
+                    ctx.font = 'bold 24px system-ui';
+                    ctx.fillText(`${formatPercentage(shareData.mainMetrics.roiValue)} ROI`, pnlX + 24, metricsY + 105);
+                }
+                
+                // Capital Card
+                const capitalX = pnlX + cardWidth + gap;
+                ctx.fillStyle = 'rgba(34, 211, 238, 0.1)';
+                ctx.fillRect(capitalX, metricsY, cardWidth, cardHeight);
+                ctx.strokeStyle = 'rgba(34, 211, 238, 0.3)';
+                ctx.strokeRect(capitalX, metricsY, cardWidth, cardHeight);
+                
+                // Capital Label
+                ctx.fillStyle = '#9ca3af';
+                ctx.font = '24px system-ui';
+                ctx.fillText(shareData.mainMetrics.capitalLabel, capitalX + 24, metricsY + 35);
+                
+                // Capital Value
+                ctx.fillStyle = '#22d3ee';
+                ctx.font = 'bold 44px system-ui';
+                ctx.fillText(formatCurrencyCompact(shareData.mainMetrics.capitalValue), capitalX + 24, metricsY + 75);
+            }
+            
+            // Second row - Secondary metrics if available
+            if (shareData.secondaryMetrics) {
+                const secondaryY = metricsY + cardHeight + gap;
+                
+                // Secondary P&L Card
+                const secPnlX = 48;
+                const isSecPnlProfit = shareData.secondaryMetrics.pnlValue >= 0;
+                ctx.fillStyle = isSecPnlProfit ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
+                ctx.fillRect(secPnlX, secondaryY, cardWidth, cardHeight);
+                ctx.strokeStyle = isSecPnlProfit ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)';
+                ctx.strokeRect(secPnlX, secondaryY, cardWidth, cardHeight);
+                
+                // Secondary P&L Label
+                ctx.fillStyle = '#9ca3af';
+                ctx.font = '24px system-ui';
+                ctx.fillText(shareData.secondaryMetrics.pnlLabel, secPnlX + 24, secondaryY + 35);
+                
+                // Secondary P&L Value
+                ctx.fillStyle = isSecPnlProfit ? '#34d399' : '#ef4444';
+                ctx.font = 'bold 44px system-ui';
+                ctx.fillText(formatCurrencyCompact(shareData.secondaryMetrics.pnlValue), secPnlX + 24, secondaryY + 75);
+                
+                // Secondary ROI if available
+                if (shareData.secondaryMetrics.roiValue !== undefined) {
+                    ctx.fillStyle = isSecPnlProfit ? '#34d399' : '#ef4444';
+                    ctx.font = 'bold 24px system-ui';
+                    ctx.fillText(`${formatPercentage(shareData.secondaryMetrics.roiValue)} ROI`, secPnlX + 24, secondaryY + 105);
+                }
+                
+                // Secondary Capital Card
+                const secCapitalX = secPnlX + cardWidth + gap;
+                ctx.fillStyle = 'rgba(34, 211, 238, 0.1)';
+                ctx.fillRect(secCapitalX, secondaryY, cardWidth, cardHeight);
+                ctx.strokeStyle = 'rgba(34, 211, 238, 0.3)';
+                ctx.strokeRect(secCapitalX, secondaryY, cardWidth, cardHeight);
+                
+                // Secondary Capital Label
+                ctx.fillStyle = '#9ca3af';
+                ctx.font = '24px system-ui';
+                ctx.fillText(shareData.secondaryMetrics.capitalLabel, secCapitalX + 24, secondaryY + 35);
+                
+                // Secondary Capital Value
+                ctx.fillStyle = '#22d3ee';
+                ctx.font = 'bold 44px system-ui';
+                ctx.fillText(formatCurrencyCompact(shareData.secondaryMetrics.capitalValue), secCapitalX + 24, secondaryY + 75);
+            }
+            
+            // Daily breakdown if available
+            if (shareData.dailyBreakdown && shareData.dailyBreakdown.length > 0) {
+                const breakdownY = (shareData.secondaryMetrics ? metricsY + cardHeight * 2 + gap * 2 : metricsY + cardHeight + gap) + 60;
+                
+                // Section title
+                ctx.fillStyle = '#5eead4';
+                ctx.font = 'bold 32px system-ui';
+                ctx.textAlign = 'center';
+                ctx.fillText('Daily Breakdown', width / 2, breakdownY);
+                
+                // Daily entries
+                const entryHeight = 28;
+                const maxEntries = Math.min(6, shareData.dailyBreakdown.length);
+                const startX = 48;
+                const startY = breakdownY + 30;
+                
+                for (let i = 0; i < maxEntries; i++) {
+                    const day = shareData.dailyBreakdown[i];
+                    const entryY = startY + i * (entryHeight + 12);
+                    
+                    // Entry background
+                    ctx.fillStyle = 'rgba(31, 41, 55, 0.5)';
+                    ctx.fillRect(startX, entryY, width - 96, entryHeight);
+                    
+                    // Date
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '20px system-ui';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(new Date(day.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }), startX + 16, entryY + 20);
+                    
+                    // P&L value
+                    ctx.fillStyle = day.pnl >= 0 ? '#34d399' : '#ef4444';
+                    ctx.font = 'bold 20px monospace';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(formatCurrencyCompact(day.pnl), width - 64, entryY + 20);
+                }
+            }
+            
+            // Footer
+            const footerY = height - 80;
+            ctx.fillStyle = '#6b7280';
+            ctx.font = '20px system-ui';
+            ctx.textAlign = 'center';
+            ctx.fillText('Track your journey to profitability. Generated by Pro Trader Journal.', width / 2, footerY);
+            
+            console.log('Custom canvas generated successfully');
+            
+            // Download the image
             const imageUrl = canvas.toDataURL('image/png');
             const link = document.createElement('a');
             link.href = imageUrl;
@@ -1213,10 +1549,17 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            
+            console.log('Image download initiated');
 
         } catch (error) {
             console.error("Error generating share image:", error);
-            setModal({ isOpen: true, type: 'alert', message: 'Could not generate shareable image.' });
+            console.error("Error details:", {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            });
+            setModal({ isOpen: true, type: 'alert', message: 'Could not generate shareable image. Error: ' + error.message });
         } finally {
             setIsLoading(false);
             setShareData(null); // Close modal
