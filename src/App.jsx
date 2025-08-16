@@ -22,15 +22,15 @@ const RAZORPAY_KEY_ID = 'rzp_live_pWNLoIsX4fvAzA';
 
 // --- FIREBASE CONFIG (placeholders, will be handled by environment) ---
 const firebaseConfig = {
-	apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-	authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-	projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-	storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-	messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-	appId: import.meta.env.VITE_FIREBASE_APP_ID,
-};
-
-const appId = import.meta.env.VITE_APP_ID || "default-app-id";
+    	apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    	authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    	projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    	storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    	messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    	appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    };
+    
+    const appId = import.meta.env.VITE_APP_ID || "default-app-id";
 
 
 // --- HELPER FUNCTIONS ---
@@ -293,7 +293,7 @@ const LandingPage = ({ setView }) => {
             <div className="absolute inset-0 -z-10 h-full w-full bg-gray-950 bg-[radial-gradient(#14b8a6_1px,transparent_1px)] [background-size:16px_16px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)]"></div>
 
             <header className="absolute top-0 left-0 right-0 z-20 p-4">
-                <div className="container mx-auto flex justify-between items-center">
+                <div className="container mx-auto flex flex-wrap justify-between items-center gap-4">
                     <h1 className="text-xl font-bold text-teal-400 tracking-wider">PRO TRADER JOURNAL</h1>
                     <div className="space-x-2">
                         <button onClick={() => setView('login')} className="px-4 py-2 text-teal-300 font-semibold rounded-lg hover:bg-gray-800/50 transition-colors">Login</button>
@@ -345,7 +345,7 @@ const LandingPage = ({ setView }) => {
                     <p className="max-w-3xl mx-auto text-lg text-gray-400 mb-12">This is the command center for your trading. All your data, beautifully visualized.</p>
                     <div className="relative group">
                         <div className="absolute -inset-0.5 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-3xl blur-lg opacity-50 group-hover:opacity-75 transition duration-1000 group-hover:duration-200 animate-tilt"></div>
-                        <div className="relative scale-[0.85] sm:scale-100 origin-top sm:origin-center">
+                        <div className="relative w-full overflow-x-auto">
                              <Dashboard
                                 allData={sampleData}
                                 isPreview={true}
@@ -613,7 +613,7 @@ const PlansScreen = ({ onPlanSelect, setModal, goBack, db }) => {
             <div className="w-full max-w-7xl mx-auto">
                 <header className="text-center my-12 md:my-16">
                     <h1 className="text-3xl sm:text-4xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-400 tracking-tight">The Professional's Toolkit for</h1>
-                     <div className="flex flex-col sm:flex-row items-center justify-center text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-tight mt-2">
+                     <div className="flex flex-col sm:flex-row items-center justify-center text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight mt-2">
                         <div className="h-12 md:h-16 overflow-hidden">
                             <ul className="animate-scroll-up leading-tight">
                                 <li className="text-teal-400 h-12 md:h-16 flex items-center justify-center sm:justify-end">Data-Driven</li>
@@ -628,8 +628,8 @@ const PlansScreen = ({ onPlanSelect, setModal, goBack, db }) => {
                     </div>
                 </header>
 
-                <div className="flex flex-col sm:flex-row items-stretch justify-center gap-8 my-16">
-                    <div className="w-full max-w-sm bg-gray-900/50 backdrop-blur-sm border border-teal-800/50 rounded-2xl p-8 text-center transition-all duration-300 hover:border-teal-500/70 hover:shadow-2xl hover:shadow-teal-500/10 transform hover:-translate-y-2 flex flex-col relative">
+                <div className="flex flex-col lg:flex-row items-stretch justify-center gap-8 my-16">
+                    <div className="w-full max-w-sm mx-auto bg-gray-900/50 backdrop-blur-sm border border-teal-800/50 rounded-2xl p-8 text-center transition-all duration-300 hover:border-teal-500/70 hover:shadow-2xl hover:shadow-teal-500/10 transform hover:-translate-y-2 flex flex-col relative">
                         <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-red-500 text-white font-bold px-4 py-1 rounded-full text-sm animate-pulse">
                             LIMITED TIME OFFER
                         </div>
@@ -646,7 +646,7 @@ const PlansScreen = ({ onPlanSelect, setModal, goBack, db }) => {
                         </button>
                     </div>
 
-                    <div className="w-full max-w-sm bg-gray-900/50 backdrop-blur-sm border-2 border-teal-400 rounded-2xl p-8 text-center relative shadow-2xl shadow-teal-500/20 transform sm:scale-105 flex flex-col">
+                    <div className="w-full max-w-sm mx-auto bg-gray-900/50 backdrop-blur-sm border-2 border-teal-400 rounded-2xl p-8 text-center relative shadow-2xl shadow-teal-500/20 transform lg:scale-105 flex flex-col">
                         <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-teal-400 text-gray-900 font-bold px-4 py-1 rounded-full text-sm">
                             BEST VALUE
                         </div>
@@ -681,7 +681,7 @@ const PlansScreen = ({ onPlanSelect, setModal, goBack, db }) => {
                 </div>
                 
                 {showPreview && (
-                    <div className="my-16">
+                    <div className="my-16 w-full overflow-x-auto">
                         <Dashboard
                             allData={sampleData}
                             isPreview={true}
@@ -879,46 +879,17 @@ const ShareablePerformanceCard = React.forwardRef(({
 
     const StatCard = ({ label, value, roi, isPnl = false }) => {
         const isProfit = value >= 0;
-        const textColor = isPnl ? (isProfit ? '#34d399' : '#ef4444') : '#22d3ee';
-        const bgColor = isPnl ? (isProfit ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)') : 'rgba(34, 211, 238, 0.1)';
-        const borderColor = isPnl ? (isProfit ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)') : 'rgba(34, 211, 238, 0.3)';
+        const colorClass = isPnl ? (isProfit ? 'text-emerald-400' : 'text-red-500') : 'text-cyan-400';
+        const bgColorClass = isPnl ? (isProfit ? 'bg-emerald-900/50' : 'bg-red-900/50') : 'bg-cyan-900/50';
         
         return (
-            <div style={{
-                padding: '16px',
-                borderRadius: '12px',
-                backgroundColor: bgColor,
-                border: `1px solid ${borderColor}`,
-                display: 'flex',
-                flexDirection: 'column',
-                height: '100%'
-            }}>
-                <p style={{
-                    fontSize: '14px',
-                    color: '#9ca3af',
-                    fontWeight: '500',
-                    marginBottom: '8px',
-                    margin: '0 0 8px 0'
-                }}>{label}</p>
-                <div style={{ flexGrow: 1 }} />
+            <div className={`p-4 rounded-xl ${bgColorClass} border border-gray-700/50 flex flex-col`}>
+                <p className="text-sm text-gray-400 font-medium mb-2">{label}</p>
+                <div className="flex-grow" />
                 <div>
-                    <p style={{
-                        fontSize: '24px',
-                        fontWeight: 'bold',
-                        lineHeight: '1.2',
-                        color: textColor,
-                        margin: 0
-                    }}>{formatCurrencyNoDecimals(value)}</p>
+                    <p className={`text-2xl font-bold leading-tight ${colorClass}`}>{formatCurrencyNoDecimals(value)}</p>
                     {roi !== undefined && (
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            fontSize: '14px',
-                            fontWeight: '600',
-                            color: textColor,
-                            marginTop: '4px',
-                            gap: '4px'
-                        }}>
+                        <div className={`flex items-center text-sm font-semibold ${colorClass} mt-1 gap-1`}>
                             <span>{formatPercentage(roi)} ROI</span>
                         </div>
                     )}
@@ -928,93 +899,31 @@ const ShareablePerformanceCard = React.forwardRef(({
     };
 
     return (
-        <div ref={ref} style={{
-            backgroundColor: '#1f2937',
-            color: 'white',
-            padding: '24px',
-            borderRadius: '16px',
-            width: '480px',
-            fontFamily: 'system-ui, -apple-system, sans-serif',
-            border: '1px solid rgba(20, 184, 166, 0.3)',
-            boxShadow: '0 25px 50px -12px rgba(20, 184, 166, 0.1)',
-            overflow: 'hidden',
-            position: 'relative'
-        }}>
-            {/* Background decorative elements */}
-            <div style={{
-                position: 'absolute',
-                top: '-80px',
-                right: '-80px',
-                width: '240px',
-                height: '240px',
-                backgroundColor: 'rgba(20, 184, 166, 0.1)',
-                borderRadius: '50%',
-                filter: 'blur(48px)'
-            }}></div>
-            <div style={{
-                position: 'absolute',
-                bottom: '-80px',
-                left: '-80px',
-                width: '240px',
-                height: '240px',
-                backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                borderRadius: '50%',
-                filter: 'blur(48px)'
-            }}></div>
+        <div ref={ref} className="bg-gradient-to-br from-gray-900 to-black text-white p-6 rounded-2xl w-full max-w-[480px] font-sans border border-teal-700/30 shadow-2xl shadow-teal-500/10 overflow-hidden relative">
+            <div className="absolute -top-20 -right-20 w-60 h-60 bg-teal-500/10 rounded-full filter blur-3xl"></div>
+            <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-violet-500/10 rounded-full filter blur-3xl"></div>
 
-            <div style={{ position: 'relative', zIndex: 10 }}>
-                <header style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    paddingBottom: '16px',
-                    borderBottom: '1px solid rgba(55, 65, 81, 0.5)'
-                }}>
+            <div className="relative z-10">
+                <header className="flex justify-between items-start pb-4 border-b border-gray-700/50">
                     <div>
-                        <h2 style={{
-                            fontSize: '30px',
-                            fontWeight: '800',
-                            color: '#5eead4',
-                            margin: '0 0 8px 0'
-                        }}>{title}</h2>
-                        <p style={{
-                            fontSize: '16px',
-                            color: '#9ca3af',
-                            margin: 0
-                        }}>{period}</p>
+                        <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-400">
+                            {title}
+                        </h2>
+                        <p className="text-md text-gray-400">{period}</p>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                        <p style={{
-                            fontWeight: 'bold',
-                            fontSize: '18px',
-                            color: '#e5e7eb',
-                            margin: '0 0 4px 0'
-                        }}>PRO TRADER JOURNAL</p>
-                        <p style={{
-                            fontSize: '12px',
-                            color: '#5eead4',
-                            letterSpacing: '0.1em',
-                            margin: 0
-                        }}>www.xponential.me</p>
+                    <div className="text-right">
+                        <p className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-gray-200 to-gray-400">PRO TRADER JOURNAL</p>
+                        <p className="text-xs text-teal-400/70 tracking-widest">www.xponential.me</p>
                     </div>
                 </header>
 
-                <main style={{ margin: '24px 0' }}>
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 1fr',
-                        gap: '16px'
-                    }}>
+                <main className="my-6">
+                    <div className="grid grid-cols-2 gap-4">
                         <StatCard label={mainMetrics.pnlLabel} value={mainMetrics.pnlValue} roi={mainMetrics.roiValue} isPnl={true} />
                         <StatCard label={mainMetrics.capitalLabel} value={mainMetrics.capitalValue} />
                     </div>
                     {secondaryMetrics && (
-                         <div style={{
-                             display: 'grid',
-                             gridTemplateColumns: '1fr 1fr',
-                             gap: '16px',
-                             marginTop: '16px'
-                         }}>
+                         <div className="grid grid-cols-2 gap-4 mt-4">
                             <StatCard label={secondaryMetrics.pnlLabel} value={secondaryMetrics.pnlValue} roi={secondaryMetrics.roiValue} isPnl={true} />
                             <StatCard label={secondaryMetrics.capitalLabel} value={secondaryMetrics.capitalValue} />
                         </div>
@@ -1022,40 +931,13 @@ const ShareablePerformanceCard = React.forwardRef(({
                 </main>
                 
                 {dailyBreakdown && dailyBreakdown.length > 0 && (
-                    <div style={{
-                        marginTop: '16px',
-                        borderTop: '1px solid rgba(55, 65, 81, 0.5)',
-                        paddingTop: '12px'
-                    }}>
-                        <h3 style={{
-                            fontSize: '18px',
-                            fontWeight: 'bold',
-                            color: '#5eead4',
-                            margin: '0 0 8px 0',
-                            textAlign: 'center'
-                        }}>Daily Breakdown</h3>
-                        <div style={{
-                            maxHeight: '128px',
-                            overflowY: 'auto',
-                            fontSize: '12px',
-                            gap: '4px',
-                            paddingRight: '8px'
-                        }}>
+                    <div className="mt-4 border-t border-gray-700/50 pt-3">
+                        <h3 className="text-lg font-bold text-teal-300 mb-2 text-center">Daily Breakdown</h3>
+                        <div className="max-h-32 overflow-y-auto text-xs space-y-1 pr-2">
                             {dailyBreakdown.map(day => (
-                                <div key={day.date} style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    backgroundColor: 'rgba(31, 41, 55, 0.5)',
-                                    padding: '4px',
-                                    borderRadius: '4px',
-                                    marginBottom: '4px'
-                                }}>
+                                <div key={day.date} className="flex justify-between items-center bg-gray-800/50 p-1 rounded">
                                     <span>{new Date(day.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
-                                    <span style={{
-                                        color: day.pnl >= 0 ? '#34d399' : '#ef4444',
-                                        fontFamily: 'monospace'
-                                    }}>
+                                    <span className={day.pnl >= 0 ? 'text-emerald-400 font-mono' : 'text-red-500 font-mono'}>
                                         {formatCurrencyNoDecimals(day.pnl)}
                                     </span>
                                 </div>
@@ -1064,17 +946,8 @@ const ShareablePerformanceCard = React.forwardRef(({
                     </div>
                 )}
                 
-                <footer style={{
-                    textAlign: 'center',
-                    marginTop: '16px',
-                    borderTop: '1px solid rgba(55, 65, 81, 0.5)',
-                    paddingTop: '12px'
-                }}>
-                    <p style={{
-                        fontSize: '12px',
-                        color: '#6b7280',
-                        margin: 0
-                    }}>Track your journey to profitability. Generated by Pro Trader Journal.</p>
+                <footer className="text-center mt-4 border-t border-gray-700/50 pt-3">
+                    <p className="text-xs text-gray-500">Track your journey to profitability. Generated by Pro Trader Journal.</p>
                 </footer>
             </div>
         </div>
@@ -1762,12 +1635,12 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
             {isProfileModalOpen && <ProfileModal />}
             {shareData && <ShareModal />}
             
-            <header className="text-center mb-10 relative flex justify-between items-center">
+            <header className="mb-10 flex flex-col sm:flex-row justify-between items-center gap-4">
                 <button onClick={() => setIsProfileModalOpen(true)} className={`px-4 py-2 bg-gray-700/50 text-white font-bold rounded-lg shadow-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-teal-500 transition-all duration-300 transform hover:scale-105 flex items-center gap-2 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>
                     <Icon path="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" className="h-5 w-5" />
                     Profile
                 </button>
-                <h1 className="text-lg sm:text-2xl md:text-4xl lg:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-500 tracking-wide absolute left-1/2 -translate-x-1/2">PRO TRADER JOURNAL</h1>
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-500 tracking-wide text-center order-first sm:order-none">PRO TRADER JOURNAL</h1>
                 <button onClick={isPreview ? handlePreviewClick : onLogout} className={`px-4 py-2 bg-red-600/80 text-white font-bold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-red-500 transition-all duration-300 transform hover:scale-105 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>Logout</button>
             </header>
 
@@ -1812,7 +1685,7 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
                 </div>
                 
                 {/* Add Trade Form */}
-                <div className="bg-gray-800/40 p-6 rounded-xl shadow-lg border border-gray-700/70 mb-10"><h2 className="text-2xl font-bold text-teal-400 mb-4">Add Day's Record</h2><form onSubmit={handleAddTrade} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start"><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Date</label><input type="date" name="date" value={newTrade.date} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required/></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Gross P&L (₹)</label><input type="number" name="grossPnl" value={newTrade.grossPnl} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" placeholder="e.g., 5000" step="0.01" required/></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Charges (₹)</label><input type="number" name="taxesAndCharges" value={newTrade.taxesAndCharges} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" placeholder="e.g., 500" step="0.01" required/></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Capital (₹)</label><input type="number" name="capitalDeployed" value={newTrade.capitalDeployed} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" placeholder="Capital for this day" step="1" required/></div><div className="lg:col-span-3 flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Notes / Strategy</label><textarea name="notes" value={newTrade.notes} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg w-full text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" placeholder="e.g., Faded the morning rally..." rows="1"></textarea></div><button type="submit" disabled={isLoading || isPreview} className={`w-full p-3 self-end bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-all duration-300 transform hover:scale-105 disabled:bg-gray-500 disabled:scale-100 ${isPreview ? 'cursor-not-allowed' : ''}`}>{isLoading ? <span className="animate-pulse">Adding...</span> : 'Add Record'}</button></form></div>
+                <div className="bg-gray-800/40 p-6 rounded-xl shadow-lg border border-gray-700/70 mb-10"><h2 className="text-2xl font-bold text-teal-400 mb-4">Add Day's Record</h2><form onSubmit={handleAddTrade} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start"><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Date</label><input type="date" name="date" value={newTrade.date} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required/></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Gross P&L (₹)</label><input type="number" name="grossPnl" value={newTrade.grossPnl} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" placeholder="e.g., 5000" step="0.01" required/></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Charges (₹)</label><input type="number" name="taxesAndCharges" value={newTrade.taxesAndCharges} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" placeholder="e.g., 500" step="0.01" required/></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Capital (₹)</label><input type="number" name="capitalDeployed" value={newTrade.capitalDeployed} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" placeholder="Capital for this day" step="1" required/></div><div className="sm:col-span-2 lg:col-span-3 flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Notes / Strategy</label><textarea name="notes" value={newTrade.notes} onChange={(e) => handleInputChange(e, setNewTrade)} className="p-3 bg-gray-900 border border-gray-600 rounded-lg w-full text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" placeholder="e.g., Faded the morning rally..." rows="1"></textarea></div><button type="submit" disabled={isLoading || isPreview} className={`w-full p-3 self-end bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-all duration-300 transform hover:scale-105 disabled:bg-gray-500 disabled:scale-100 ${isPreview ? 'cursor-not-allowed' : ''}`}>{isLoading ? <span className="animate-pulse">Adding...</span> : 'Add Record'}</button></form></div>
 
                 {/* Tables Section */}
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -1821,10 +1694,10 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
                         <div className="flex flex-wrap justify-between items-center mb-4 gap-4">
                             <h2 className="text-2xl font-bold text-teal-400">Daily History ({trades.length})</h2>
                             <div className="flex gap-2 flex-wrap">
-                                <button onClick={() => prepareShareData('latest')} disabled={isLoading} className={`px-4 py-2 bg-violet-600/80 text-white font-bold rounded-lg hover:bg-violet-700 transition-all duration-300 flex items-center gap-2 transform hover:scale-105 disabled:bg-gray-500 disabled:scale-100 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`} aria-label="Share Performance"><Icon path="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" className="h-5 w-5" /><span>Share</span></button>
-                                <button onClick={handleLoadSampleData} className={`px-4 py-2 bg-indigo-600/80 text-white font-bold rounded-lg hover:bg-indigo-700 transition-all duration-300 transform hover:scale-105 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>Load Sample</button>
-                                <button onClick={handleDeleteAllTrades} className={`px-3 py-2 bg-red-600/80 text-white font-bold rounded-lg hover:bg-red-700 transition-all duration-300 transform hover:scale-105 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`} aria-label="Delete All Records"><Icon path="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" className="h-5 w-5"/></button>
-                                <button onClick={handleExportCSV} className={`px-4 py-2 bg-teal-500/80 text-white font-bold rounded-lg hover:bg-teal-600 transition-all duration-300 flex items-center gap-2 transform hover:scale-105 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`} aria-label="Export to CSV"><Icon path="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" className="h-5 w-5" /><span className="hidden sm:inline">Export</span></button>
+                                <button onClick={() => prepareShareData('latest')} disabled={isLoading} className={`p-2 bg-violet-600/80 text-white font-bold rounded-lg hover:bg-violet-700 transition-all duration-300 flex items-center gap-2 transform hover:scale-105 disabled:bg-gray-500 disabled:scale-100 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`} aria-label="Share Performance"><Icon path="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" className="h-5 w-5" /><span className="hidden sm:inline">Share</span></button>
+                                <button onClick={handleLoadSampleData} className={`p-2 bg-indigo-600/80 text-white font-bold rounded-lg hover:bg-indigo-700 transition-all duration-300 transform hover:scale-105 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}><span className="hidden sm:inline">Load Sample</span><Icon path="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" className="h-5 w-5 sm:hidden" /></button>
+                                <button onClick={handleDeleteAllTrades} className={`p-2 bg-red-600/80 text-white font-bold rounded-lg hover:bg-red-700 transition-all duration-300 transform hover:scale-105 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`} aria-label="Delete All Records"><Icon path="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" className="h-5 w-5"/></button>
+                                <button onClick={handleExportCSV} className={`p-2 bg-teal-500/80 text-white font-bold rounded-lg hover:bg-teal-600 transition-all duration-300 flex items-center gap-2 transform hover:scale-105 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`} aria-label="Export to CSV"><Icon path="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" className="h-5 w-5" /><span className="hidden sm:inline">Export</span></button>
                             </div>
                         </div>
                         <div className="max-h-96 overflow-y-auto">
@@ -1840,8 +1713,8 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
                                                     <td className={`p-3 font-semibold ${netPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>{formatCurrencyPrecise(netPnl)}</td>
                                                     <td className="p-3 text-right space-x-1">
                                                         <button onClick={(e) => { e.stopPropagation(); prepareShareData('daily', trade); }} className={`p-1.5 bg-violet-600/20 text-violet-400 hover:bg-violet-500 hover:text-white rounded-md transition-colors transform hover:scale-110 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}><Icon path="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" className="h-4 w-4" /></button>
-                                                        <button onClick={(e) => { e.stopPropagation(); handleEditTrade(trade); }} className={`px-3 py-1 bg-blue-600/20 text-blue-400 hover:bg-blue-500 hover:text-white text-xs font-bold rounded-md transition-colors transform hover:scale-110 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>EDIT</button>
-                                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteTrade(trade.id); }} className={`px-3 py-1 bg-red-600/20 text-red-400 hover:bg-red-500 hover:text-white text-xs font-bold rounded-md transition-colors transform hover:scale-110 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}>DELETE</button>
+                                                        <button onClick={(e) => { e.stopPropagation(); handleEditTrade(trade); }} className={`p-1.5 bg-blue-600/20 text-blue-400 hover:bg-blue-500 hover:text-white rounded-md transition-colors transform hover:scale-110 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}><Icon path="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.536L16.732 3.732z" className="h-4 w-4" /></button>
+                                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteTrade(trade.id); }} className={`p-1.5 bg-red-600/20 text-red-400 hover:bg-red-500 hover:text-white rounded-md transition-colors transform hover:scale-110 ${isPreview ? 'opacity-50 cursor-not-allowed' : ''}`}><Icon path="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" className="h-4 w-4" /></button>
                                                     </td>
                                                 </tr>
                                                 {isExpanded && (<tr className="bg-gray-800/50"><td colSpan="3" className="p-4"><div className="text-gray-300"><p><strong className="text-teal-400">Gross P&L:</strong> {formatCurrencyPrecise(trade.grossPnl)}</p><p><strong className="text-teal-400">Charges:</strong> {formatCurrencyPrecise(trade.taxesAndCharges)}</p><p><strong className="text-teal-400">Capital:</strong> {formatCurrencyPrecise(trade.capitalDeployed)}</p>{trade.notes && <p className="mt-2"><strong className="text-teal-400">Notes:</strong> {trade.notes}</p>}</div></td></tr>)}
@@ -2382,58 +2255,81 @@ const App = () => {
             name: "Pro Trader Journal",
             description: isRenewalFlow ? `Renew ${planType} Plan` : `Activate ${planType} Plan`,
             handler: async (response) => {
-                const newPaymentRecord = {
-                    paymentId: response.razorpay_payment_id,
-                    plan: planType,
-                    amount: amountInPaise,
-                    date: new Date().toISOString()
-                };
-
-                if (isRenewalFlow) {
-                    // --- RENEWAL LOGIC ---
-                    const days = planType === 'monthly' ? 30 : 365;
-                    const newExpiryDate = new Date().getTime() + days * 24 * 60 * 60 * 1000;
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, loggedInCode);
-                    const docSnap = await getDoc(docRef);
-
-                    if (docSnap.exists()) {
-                        const existingData = docSnap.data();
-                        const paymentHistory = existingData.userInfo.paymentHistory || [];
-                        const updatedUserInfo = {
-                            ...existingData.userInfo,
-                            plan: planType,
-                            expiryDate: newExpiryDate,
-                            paymentHistory: [...paymentHistory, newPaymentRecord]
-                        };
-                        await setDoc(docRef, { userInfo: updatedUserInfo }, { merge: true });
-                        showSuccessNotification('Plan Renewed Successfully!');
-                        setIsRenewalFlow(false);
-                        setView('dashboard');
-                    } else {
-                        setModal({isOpen: true, type: 'alert', message: 'Could not find your account to renew. Please contact support.'});
-                    }
-                } else {
-                    // --- NEW REGISTRATION LOGIC ---
-                    const { accessCode, password } = registrationDetails;
-                    const days = planType === 'monthly' ? 30 : 365;
-                    const expiryDate = new Date().getTime() + days * 24 * 60 * 60 * 1000;
-                    const initialData = { 
-                        userInfo: { 
-                            password: password,
-                            createdAt: new Date().toISOString(),
-                            plan: planType,
-                            expiryDate: expiryDate,
-                            paymentHistory: [newPaymentRecord]
-                        }, 
-                        journals: [], 
-                        trades: {} 
+                try {
+                    const newPaymentRecord = {
+                        paymentId: response.razorpay_payment_id,
+                        plan: planType,
+                        amount: amountInPaise,
+                        date: new Date().toISOString()
                     };
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, accessCode);
-                    await setDoc(docRef, initialData);
-                    showSuccessNotification('Payment Successful! Account Activated.');
-                    await handleLogin(accessCode, password);
+
+                    if (isRenewalFlow) {
+                        // --- RENEWAL LOGIC ---
+                        const days = planType === 'monthly' ? 30 : 365;
+                        const newExpiryDate = new Date().getTime() + days * 24 * 60 * 60 * 1000;
+                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, loggedInCode);
+                        const docSnap = await getDoc(docRef);
+
+                        if (docSnap.exists()) {
+                            const existingData = docSnap.data();
+                            const paymentHistory = existingData.userInfo.paymentHistory || [];
+                            const updatedUserInfo = {
+                                ...existingData.userInfo,
+                                plan: planType,
+                                expiryDate: newExpiryDate,
+                                paymentHistory: [...paymentHistory, newPaymentRecord]
+                            };
+                            await setDoc(docRef, { userInfo: updatedUserInfo }, { merge: true });
+                            showSuccessNotification('Plan Renewed Successfully!');
+                            setIsRenewalFlow(false);
+                            navigateTo('dashboard');
+                        } else {
+                            throw new Error('Could not find user account for renewal.');
+                        }
+                    } else {
+                        // --- NEW REGISTRATION LOGIC ---
+                        if (!registrationDetails) {
+                            throw new Error("Registration details are missing during payment handling.");
+                        }
+                        const { accessCode, password } = registrationDetails;
+                        const days = planType === 'monthly' ? 30 : 365;
+                        const expiryDate = new Date().getTime() + days * 24 * 60 * 60 * 1000;
+                        const initialData = { 
+                            userInfo: { 
+                                password: password,
+                                createdAt: new Date().toISOString(),
+                                plan: planType,
+                                expiryDate: expiryDate,
+                                paymentHistory: [newPaymentRecord]
+                            }, 
+                            journals: [], 
+                            trades: {} 
+                        };
+                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, accessCode);
+                        await setDoc(docRef, initialData);
+                        
+                        // **FIX**: Show success modal with access code instead of auto-login
+                        setModal({
+                            isOpen: true,
+                            type: 'alert',
+                            message: `Account created successfully! Your Access Code is: ${accessCode}.\nPlease log in to continue.`,
+                            onConfirm: () => {
+                                setModal({ isOpen: false });
+                                navigateTo('login');
+                            }
+                        });
+                        
+                    }
+                } catch (error) {
+                    console.error("Error processing payment success handler:", error);
+                    setModal({
+                        isOpen: true,
+                        type: 'alert',
+                        message: `Your payment was successful, but there was an error activating your account. Please contact support with Payment ID: ${response.razorpay_payment_id}`
+                    });
+                } finally {
+                    setIsLoading(false);
                 }
-                setIsLoading(false);
             },
             prefill: {
                 name: "Trader",
@@ -2441,7 +2337,7 @@ const App = () => {
                 contact: "9999999999"
             },
             notes: {
-                accessCode: isRenewalFlow ? loggedInCode : registrationDetails.accessCode
+                accessCode: isRenewalFlow ? loggedInCode : (registrationDetails ? registrationDetails.accessCode : 'N/A')
             },
             theme: {
                 color: "#14b8a6"
@@ -2462,12 +2358,21 @@ const App = () => {
         rzp.open();
     };
 
+
     const handleStartRenewal = () => {
         setIsRenewalFlow(true);
         navigateTo('plans');
     };
 
-    const handleModalClose = () => setModal({ isOpen: false });
+    const handleModalClose = () => {
+        // **FIX**: Check if there's a specific onConfirm action before executing it.
+        // This prevents the 'Cancel' button from triggering a save action.
+        if (modal.onConfirm && modal.type !== 'editTrade' && modal.type !== 'createJournal') {
+             modal.onConfirm();
+        } else {
+             setModal({ isOpen: false });
+        }
+    };
     
     const renderView = () => {
         switch(view) {
@@ -2489,11 +2394,11 @@ const App = () => {
     const renderModalContent = () => {
         switch (modal.type) {
             case 'createJournal':
-                return (<form onSubmit={modal.onConfirm}><h3 className="text-xl font-bold text-teal-400 mb-4">Create New Journal</h3><div className="space-y-4 text-left"><input type="text" name="name" placeholder="Journal Name" defaultValue={modal.defaultValues?.name} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /><input type="number" name="initialCapital" placeholder="Initial Capital (₹)" defaultValue={modal.defaultValues?.initialCapital} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /></div><div className="flex justify-center gap-4 mt-6"><button type="submit" className="px-6 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600">Create</button><button type="button" onClick={handleModalClose} className="px-6 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-gray-700">Cancel</button></div></form>);
+                return (<form onSubmit={modal.onConfirm}><h3 className="text-xl font-bold text-teal-400 mb-4">Create New Journal</h3><div className="space-y-4 text-left"><input type="text" name="name" placeholder="Journal Name" defaultValue={modal.defaultValues?.name} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /><input type="number" name="initialCapital" placeholder="Initial Capital (₹)" defaultValue={modal.defaultValues?.initialCapital} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /></div><div className="flex justify-center gap-4 mt-6"><button type="submit" className="px-6 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600">Create</button><button type="button" onClick={() => setModal({isOpen: false})} className="px-6 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-gray-700">Cancel</button></div></form>);
             case 'editTrade':
-                return (<form onSubmit={modal.onConfirm}><h3 className="text-xl font-bold text-teal-400 mb-4">Edit Record</h3><div className="space-y-4 text-left"><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Date</label><input type="date" name="date" defaultValue={modal.defaultValues?.date} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Gross P&L (₹)</label><input type="number" step="0.01" name="grossPnl" defaultValue={modal.defaultValues?.grossPnl} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Charges (₹)</label><input type="number" step="0.01" name="taxesAndCharges" defaultValue={modal.defaultValues?.taxesAndCharges} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Capital (₹)</label><input type="number" step="1" name="capitalDeployed" defaultValue={modal.defaultValues?.capitalDeployed} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Notes</label><textarea name="notes" defaultValue={modal.defaultValues?.notes} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" rows="2"></textarea></div></div><div className="flex justify-center gap-4 mt-6"><button type="submit" className="px-6 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600">Save</button><button type="button" onClick={handleModalClose} className="px-6 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-gray-700">Cancel</button></div></form>);
+                return (<form onSubmit={modal.onConfirm}><h3 className="text-xl font-bold text-teal-400 mb-4">Edit Record</h3><div className="space-y-4 text-left"><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Date</label><input type="date" name="date" defaultValue={modal.defaultValues?.date} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Gross P&L (₹)</label><input type="number" step="0.01" name="grossPnl" defaultValue={modal.defaultValues?.grossPnl} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Charges (₹)</label><input type="number" step="0.01" name="taxesAndCharges" defaultValue={modal.defaultValues?.taxesAndCharges} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Capital (₹)</label><input type="number" step="1" name="capitalDeployed" defaultValue={modal.defaultValues?.capitalDeployed} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /></div><div className="flex flex-col"><label className="text-sm font-medium text-gray-300 mb-1">Notes</label><textarea name="notes" defaultValue={modal.defaultValues?.notes} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" rows="2"></textarea></div></div><div className="flex justify-center gap-4 mt-6"><button type="submit" className="px-6 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600">Save</button><button type="button" onClick={() => setModal({isOpen: false})} className="px-6 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-gray-700">Cancel</button></div></form>);
             default: // alert and confirm
-                return (<><p className="text-lg text-gray-100 mb-6">{modal.message}</p><div className="flex justify-center gap-4"><button onClick={() => { if(modal.onConfirm) modal.onConfirm(); else handleModalClose(); }} className="px-6 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600">OK</button>{modal.type === 'confirm' && <button onClick={handleModalClose} className="px-6 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-gray-700">Cancel</button>}</div></>);
+                return (<><div className="text-lg text-gray-100 mb-6" style={{ whiteSpace: 'pre-wrap' }}>{modal.message}</div><div className="flex justify-center gap-4"><button onClick={() => { if (modal.onConfirm) { modal.onConfirm(); } else { setModal({isOpen: false}); } }} className="px-6 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600">OK</button>{modal.type === 'confirm' && <button onClick={() => setModal({isOpen: false})} className="px-6 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-gray-700">Cancel</button>}</div></>);
         }
     };
 
