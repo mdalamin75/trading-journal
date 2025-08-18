@@ -509,7 +509,7 @@ const RegisterScreen = ({ setView, setRegistrationDetails, db, setModal, goBack 
     );
 };
 
-const PlansScreen = ({ onPlanSelect, setModal, goBack, db }) => {
+const PlansScreen = ({ onPlanSelect, setModal, goBack, db, isRazorpayReady, isRenewalFlow, registrationDetails }) => {
     const [showPreview, setShowPreview] = useState(false);
     const [couponCode, setCouponCode] = useState('');
     const [appliedCoupon, setAppliedCoupon] = useState(null);
@@ -641,8 +641,8 @@ const PlansScreen = ({ onPlanSelect, setModal, goBack, db }) => {
                                 {appliedCoupon ? <p className="text-lg text-gray-500 line-through">₹99</p> : <p className="text-lg text-gray-500 line-through">₹300</p>}
                             </div>
                         </div>
-                        <button onClick={() => onPlanSelect('monthly', discountedPrices.monthly)} className="w-full p-4 bg-gray-700 text-white font-bold rounded-xl hover:bg-gray-600 transition-all duration-300 text-lg shadow-lg mt-4">
-                            Get Started
+                        <button onClick={() => onPlanSelect('monthly', discountedPrices.monthly)} disabled={!db || !isRazorpayReady || (!isRenewalFlow && !registrationDetails)} className={`w-full p-4 text-white font-bold rounded-xl transition-all duration-300 text-lg shadow-lg mt-4 ${(!db || !isRazorpayReady || (!isRenewalFlow && !registrationDetails)) ? 'bg-gray-600 cursor-not-allowed' : 'bg-gray-700 hover:bg-gray-600'}`}>
+                            {(!db) ? 'Connecting...' : (!isRazorpayReady ? 'Loading Payments...' : 'Get Started')}
                         </button>
                     </div>
 
@@ -659,8 +659,8 @@ const PlansScreen = ({ onPlanSelect, setModal, goBack, db }) => {
                             </div>
                             <p className="text-lg text-gray-400 -mt-2 mb-4">(Just ₹{(discountedPrices.yearly / 12 / 100).toFixed(2)}/mo)</p>
                         </div>
-                        <button onClick={() => onPlanSelect('yearly', discountedPrices.yearly)} className="w-full p-4 bg-gradient-to-r from-teal-400 to-cyan-500 text-white font-bold rounded-xl hover:opacity-90 transition-opacity duration-300 text-lg shadow-lg shadow-teal-500/30 mt-4">
-                            Go Pro Yearly
+                        <button onClick={() => onPlanSelect('yearly', discountedPrices.yearly)} disabled={!db || !isRazorpayReady || (!isRenewalFlow && !registrationDetails)} className={`w-full p-4 text-white font-bold rounded-xl transition-opacity duration-300 text-lg shadow-lg shadow-teal-500/30 mt-4 ${(!db || !isRazorpayReady || (!isRenewalFlow && !registrationDetails)) ? 'bg-gray-500 cursor-not-allowed' : 'bg-gradient-to-r from-teal-400 to-cyan-500 hover:opacity-90'}`}>
+                            {(!db) ? 'Connecting...' : (!isRazorpayReady ? 'Loading Payments...' : 'Go Pro Yearly')}
                         </button>
                     </div>
                 </div>
@@ -2024,6 +2024,7 @@ const App = () => {
     const [auth, setAuth] = useState(null);
     const [isRenewalFlow, setIsRenewalFlow] = useState(false);
     const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+    const [isRazorpayReady, setIsRazorpayReady] = useState(false);
 
     // Function to change view and manage history for back button
     const navigateTo = (newView) => {
@@ -2049,7 +2050,14 @@ const App = () => {
 
     // Initialize Firebase and Auth
     useEffect(() => {
-        if (Object.keys(firebaseConfig).length > 0) {
+        const isFirebaseConfigValid = Boolean(
+            firebaseConfig?.apiKey &&
+            firebaseConfig?.authDomain &&
+            firebaseConfig?.projectId &&
+            firebaseConfig?.appId
+        );
+
+        if (isFirebaseConfigValid) {
             try {
                 const app = initializeApp(firebaseConfig);
                 const firestore = getFirestore(app);
@@ -2082,6 +2090,12 @@ const App = () => {
             script.id = id;
             script.src = src;
             script.async = true;
+            script.onload = () => {
+                if (id === 'razorpay-checkout-js') setIsRazorpayReady(true);
+            };
+            script.onerror = () => {
+                if (id === 'razorpay-checkout-js') setIsRazorpayReady(false);
+            };
             document.body.appendChild(script);
         };
         loadScript('https://checkout.razorpay.com/v1/checkout.js', 'razorpay-checkout-js');
@@ -2241,8 +2255,19 @@ const App = () => {
     };
 
     const handlePlanPayment = async (planType, amountInPaise) => {
-        if (RAZORPAY_KEY_ID === 'YOUR_KEY_ID_HERE' || !window.Razorpay) {
-            setModal({isOpen: true, type: 'alert', message: 'Payment gateway is not configured. Please contact the administrator.'});
+        if (!db) {
+            setModal({ isOpen: true, type: 'alert', message: 'Cannot start payment: database is not connected.' });
+            return;
+        }
+
+        if (!isRenewalFlow && !registrationDetails) {
+            setModal({ isOpen: true, type: 'alert', message: 'Please complete registration first.' });
+            navigateTo('register');
+            return;
+        }
+
+        if (!window.Razorpay) {
+            setModal({ isOpen: true, type: 'alert', message: 'Payment gateway is initializing. Please wait a moment and try again.' });
             return;
         }
         
@@ -2378,7 +2403,7 @@ const App = () => {
         switch(view) {
             case 'landing': return <LandingPage setView={navigateTo} />;
             case 'register': return <RegisterScreen setView={navigateTo} setRegistrationDetails={setRegistrationDetails} db={db} setModal={setModal} goBack={goBack} />;
-            case 'plans': return <PlansScreen onPlanSelect={handlePlanPayment} setModal={setModal} goBack={goBack} db={db} />;
+            case 'plans': return <PlansScreen onPlanSelect={handlePlanPayment} setModal={setModal} goBack={goBack} db={db} isRazorpayReady={isRazorpayReady} isRenewalFlow={isRenewalFlow} registrationDetails={registrationDetails} />;
             case 'dashboard': return <Dashboard allData={allData} updateData={updateData} userId={loggedInCode} onLogout={handleLogout} modal={modal} setModal={setModal} db={db} setView={navigateTo} handleStartRenewal={handleStartRenewal} />;
             case 'admin-login': return <AdminLogin onAdminLogin={() => { setIsAdminAuthenticated(true); navigateTo('admin'); }} setView={navigateTo} setModal={setModal} />;
             case 'admin': return isAdminAuthenticated ? <AdminPanel db={db} setView={navigateTo} setModal={setModal} /> : <AdminLogin onAdminLogin={() => { setIsAdminAuthenticated(true); navigateTo('admin'); }} setView={navigateTo} setModal={setModal} />;
