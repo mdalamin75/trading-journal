@@ -52,7 +52,7 @@ const formatCurrencyCompact = (value) => {
 const formatPercentage = (value) => `${(value || 0).toFixed(2)}%`;
 const formatDateForAxis = (tickItem) => {
     const date = new Date(tickItem);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return date.toLocaleString('en-US', { month: 'short', day: 'numeric' });
 };
 const generateUniqueId = () => `id_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -674,8 +674,9 @@ const PlansScreen = ({ onPlanSelect, setModal, goBack, db, isProcessingPayment }
                     </div>
                 </header>
 
-                <div className="flex flex-col md:flex-row items-stretch justify-center my-16">
-                    <div className="w-full max-w-sm mx-auto bg-gray-900/50 backdrop-blur-sm border border-teal-800/50 rounded-2xl p-8 text-center transition-all duration-300 hover:border-teal-500/70 hover:shadow-2xl hover:shadow-teal-500/10 transform hover:-translate-y-2 flex flex-col relative">
+                {/* FIX: Replaced margin-based spacing with gap for consistency */}
+                <div className="flex flex-col md:flex-row items-stretch justify-center gap-8 my-16">
+                    <div className="w-full max-w-sm bg-gray-900/50 backdrop-blur-sm border border-teal-800/50 rounded-2xl p-8 text-center transition-all duration-300 hover:border-teal-500/70 hover:shadow-2xl hover:shadow-teal-500/10 transform hover:-translate-y-2 flex flex-col relative">
                         <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-red-500 text-white font-bold px-4 py-1 rounded-full text-sm animate-pulse">
                             LIMITED TIME OFFER
                         </div>
@@ -692,7 +693,7 @@ const PlansScreen = ({ onPlanSelect, setModal, goBack, db, isProcessingPayment }
                         </button>
                     </div>
 
-                    <div className="w-full max-w-sm mx-auto bg-gray-900/50 backdrop-blur-sm border-2 border-teal-400 rounded-2xl p-8 text-center relative shadow-2xl shadow-teal-500/20 transform flex flex-col">
+                    <div className="w-full max-w-sm bg-gray-900/50 backdrop-blur-sm border-2 border-teal-400 rounded-2xl p-8 text-center relative shadow-2xl shadow-teal-500/20 transform flex flex-col">
                         <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-teal-400 text-gray-900 font-bold px-4 py-1 rounded-full text-sm">
                             BEST VALUE
                         </div>
@@ -712,10 +713,11 @@ const PlansScreen = ({ onPlanSelect, setModal, goBack, db, isProcessingPayment }
                 </div>
                 
                 <div className="my-16 max-w-sm mx-auto">
-                    <div className="flex gap-2">
+                    {/* FIX: Wrapped coupon input and button in a form to allow submission on Enter key press */}
+                    <form onSubmit={(e) => { e.preventDefault(); handleApplyCoupon(); }} className="flex gap-2">
                         <input type="text" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} placeholder="Enter Coupon Code" className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" />
-                        <button onClick={handleApplyCoupon} className="px-6 py-3 bg-gray-700 text-white font-bold rounded-lg hover:bg-gray-600 transition-colors">Apply</button>
-                    </div>
+                        <button type="submit" className="px-6 py-3 bg-gray-700 text-white font-bold rounded-lg hover:bg-gray-600 transition-colors">Apply</button>
+                    </form>
                     {appliedCoupon && <p className="text-center text-green-400 mt-2">Applied: {appliedCoupon.discountPercentage}% off!</p>}
                 </div>
 
@@ -2367,10 +2369,7 @@ const App = () => {
             name: "Pro Trader Journal",
             description: isRenewalFlow ? `Renew ${planType} Plan` : `Activate ${planType} Plan`,
             handler: async (response) => {
-                // Since this is a client-only deployment, we handle the database update directly here.
-                // This is NOT secure for a production app with multiple users, but per user request.
                 try {
-                    // FIX: Removed redundant and faulty destructuring
                     const newPaymentRecord = {
                         paymentId: response.razorpay_payment_id,
                         plan: planType,
@@ -2397,9 +2396,11 @@ const App = () => {
                                 paymentHistory: [...paymentHistory, newPaymentRecord]
                             } 
                         }, { merge: true });
+
                         showSuccessNotification('Plan Renewed Successfully!');
                         setIsRenewalFlow(false);
-                        navigateTo('dashboard');
+                        // FIX: Delay navigation to allow Razorpay modal to close gracefully, preventing issues on platforms like Vercel.
+                        setTimeout(() => navigateTo('dashboard'), 100);
 
                     } else {
                         const { name, email, mobile, accessCode, password } = registrationDetails;
@@ -2421,7 +2422,8 @@ const App = () => {
                         const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, accessCode);
                         await setDoc(docRef, initialData);
                         setPaymentSuccessDetails({ accessCode: accessCode });
-                        navigateTo('paymentSuccess');
+                        // FIX: Delay navigation to allow Razorpay modal to close gracefully.
+                        setTimeout(() => navigateTo('paymentSuccess'), 100);
                     }
                 } catch(error) {
                     console.error("DATABASE UPDATE ERROR:", error);
@@ -2443,10 +2445,10 @@ const App = () => {
             },
             modal: {
                 ondismiss: () => {
-                    if (isProcessingPayment) {
-                        setIsProcessingPayment(false);
-                        setModal({isOpen: true, type: 'alert', message: 'Payment was cancelled.'});
-                    }
+                    // FIX: Removed conditional check. If ondismiss is called, the payment was not completed.
+                    // This prevents the UI from getting stuck in a "Processing..." state.
+                    setIsProcessingPayment(false);
+                    setModal({isOpen: true, type: 'alert', message: 'Payment was cancelled.'});
                 }
             }
         };
