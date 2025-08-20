@@ -13,23 +13,24 @@ const TRADES_PER_PAGE = 20;
 const SESSION_KEY = 'proTraderAccessCode';
 const DB_COLLECTION_NAME = 'pro_trader_journals';
 const COUPONS_COLLECTION_NAME = 'coupons';
-const ADMIN_PASSWORD = 'Pujan@123'; // The password for the admin panel
-const XPONENTIAL_LOGO_BASE_64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAADMElEQVR4nOzVwQnAMAwEwe9/6G6gBTuI4Sg7Njpb2+d5/g4gwI8CBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAL8B+ALAwAQi3gAAAABJRU5ErkJggg==";
+const USER_TAGS = ['New User', 'Test User', 'Beta User', 'Good User', 'Demo User'];
 
-// --- IMPORTANT: PLACE YOUR RAZORPAY KEY ID HERE ---
+
+// --- USER-PROVIDED CREDENTIALS ---
+const ADMIN_PASSWORD = 'Pujan@123';
 const RAZORPAY_KEY_ID = 'rzp_live_pWNLoIsX4fvAzA';
+const APP_ID = 'pro-trader-journall';
+const INITIAL_AUTH_TOKEN = 'jfdkjfdjijfeayuioptwreqandfkdjfdhuahdfasytadfnvnaeqwoajenvbajytaadjioe';
 
-// --- FIREBASE CONFIG (placeholders, will be handled by environment) ---
 const firebaseConfig = {
-	apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-	authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-	projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-	storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-	messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-	appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    apiKey: "AIzaSyB9xvaaiOu72Q3CvVpQUOHds8xig54-ljw",
+    authDomain: "pro-trader-journall.firebaseapp.com",
+    projectId: "pro-trader-journall",
+    storageBucket: "pro-trader-journall.firebasestorage.app",
+    messagingSenderId: "711459341427",
+    appId: "1:711459341427:web:cf64e7052e9138bb76d606"
 };
-
-const appId = import.meta.env.VITE_APP_ID || "default-app-id";
+const appId = APP_ID;
 
 
 // --- HELPER FUNCTIONS ---
@@ -296,7 +297,7 @@ const LandingPage = ({ setView }) => {
                     <h1 className="text-xl font-bold text-teal-400 tracking-wider">PRO TRADER JOURNAL</h1>
                     <div className="space-x-2">
                         <button onClick={() => setView('login')} className="px-4 py-2 text-teal-300 font-semibold rounded-lg hover:bg-gray-800/50 transition-colors">Login</button>
-                        <button onClick={() => setView('register')} className="px-4 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-all transform hover:scale-105">Sign Up</button>
+                        <button onClick={() => setView('userDetails')} className="px-4 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-all transform hover:scale-105">Sign Up</button>
                     </div>
                 </div>
             </header>
@@ -321,7 +322,7 @@ const LandingPage = ({ setView }) => {
                 <p className="mt-6 max-w-2xl text-lg text-gray-400">
                     Stop guessing. Start analyzing. The ultimate journal for serious traders who want to find their edge, manage risk, and build lasting consistency.
                 </p>
-                <button onClick={() => setView('register')} className="mt-10 px-8 py-4 bg-gradient-to-r from-teal-400 to-cyan-500 text-white font-bold rounded-xl hover:opacity-90 transition-opacity duration-300 text-lg shadow-lg shadow-teal-500/30 transform hover:scale-105">
+                <button onClick={() => setView('userDetails')} className="mt-10 px-8 py-4 bg-gradient-to-r from-teal-400 to-cyan-500 text-white font-bold rounded-xl hover:opacity-90 transition-opacity duration-300 text-lg shadow-lg shadow-teal-500/30 transform hover:scale-105">
                     Start Your 1-Month Trial for ₹99
                 </button>
             </main>
@@ -411,7 +412,7 @@ const LoginScreen = ({ onLogin, setModal, setView, db }) => {
                     </form>
                     <p className="text-center text-gray-400 mt-6">
                         Don't have an account?{' '}
-                        <button onClick={() => setView('register')} className="font-semibold text-teal-400 hover:text-teal-300 transition-colors">
+                        <button onClick={() => setView('userDetails')} className="font-semibold text-teal-400 hover:text-teal-300 transition-colors">
                             Register Here
                         </button>
                     </p>
@@ -425,6 +426,46 @@ const LoginScreen = ({ onLogin, setModal, setView, db }) => {
         </div>
     );
 };
+
+const UserDetailsScreen = ({ setView, setRegistrationDetails, goBack }) => {
+    const [name, setName] = useState('');
+    const [email, setEmail] = useState('');
+    const [mobile, setMobile] = useState('');
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        setRegistrationDetails(prev => ({ ...prev, name, email, mobile }));
+        setView('register');
+    };
+
+    return (
+        <div className="min-h-screen bg-gray-950 flex flex-col justify-center items-center p-4 text-gray-100 font-sans relative">
+            <BackButton onClick={goBack} />
+            <div className="w-full max-w-md">
+                <header className="text-center mb-8">
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-500 tracking-wide">Let's Get Started</h1>
+                    <p className="text-gray-400 mt-2">Tell us a bit about yourself.</p>
+                </header>
+                <div className="bg-gray-900 border border-teal-800/50 rounded-2xl shadow-2xl p-8">
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <input type="text" placeholder="Full Name" value={name} onChange={e => setName(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required />
+                        <input type="email" placeholder="Email Address" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required />
+                        <input type="tel" placeholder="Mobile Number" value={mobile} onChange={e => setMobile(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required />
+                        <button type="submit" className="w-full p-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-all transform hover:scale-105">
+                            Next: Secure Your Account
+                        </button>
+                    </form>
+                    <p className="text-center text-gray-500 mt-4 text-sm">
+                        <button onClick={() => setView('landing')} className="hover:text-gray-300 transition-colors">
+                            &larr; Back to Home
+                        </button>
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 const RegisterScreen = ({ setView, setRegistrationDetails, db, setModal, goBack }) => {
     const [accessCode, setAccessCode] = useState('');
@@ -463,7 +504,7 @@ const RegisterScreen = ({ setView, setRegistrationDetails, db, setModal, goBack 
             if (docSnap.exists()) {
                 setModal({ isOpen: true, type: 'alert', message: 'This access code is already taken. Please choose another one.' });
             } else {
-                setRegistrationDetails({ accessCode: trimmedCode, password: password });
+                setRegistrationDetails(prev => ({ ...prev, accessCode: trimmedCode, password: password }));
                 setView('plans');
             }
         } catch (error) {
@@ -479,8 +520,8 @@ const RegisterScreen = ({ setView, setRegistrationDetails, db, setModal, goBack 
             <BackButton onClick={goBack} />
             <div className="w-full max-w-md">
                  <header className="text-center mb-8">
-                    <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-500 tracking-wide">Create Your Account</h1>
-                    <p className="text-gray-400 mt-2">Set up your secure access to the journal.</p>
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-500 tracking-wide">Secure Your Account</h1>
+                    <p className="text-gray-400 mt-2">Create a PIN and password for your journal.</p>
                 </header>
                 <div className="bg-gray-900 border border-teal-800/50 rounded-2xl shadow-2xl p-8">
                     <form onSubmit={handleSubmit} className="space-y-4">
@@ -508,7 +549,7 @@ const RegisterScreen = ({ setView, setRegistrationDetails, db, setModal, goBack 
     );
 };
 
-const PlansScreen = ({ onPlanSelect, setModal, goBack, db, isProcessingPayment, registrationDetails, handleLogin, showSuccessNotification }) => {
+const PlansScreen = ({ onPlanSelect, setModal, goBack, db, isProcessingPayment }) => {
     const [showPreview, setShowPreview] = useState(false);
     const [couponCode, setCouponCode] = useState('');
     const [appliedCoupon, setAppliedCoupon] = useState(null);
@@ -633,7 +674,7 @@ const PlansScreen = ({ onPlanSelect, setModal, goBack, db, isProcessingPayment, 
                     </div>
                 </header>
 
-                <div className="flex flex-col lg:flex-row items-stretch justify-center gap-8 my-16">
+                <div className="flex flex-col md:flex-row items-stretch justify-center my-16">
                     <div className="w-full max-w-sm mx-auto bg-gray-900/50 backdrop-blur-sm border border-teal-800/50 rounded-2xl p-8 text-center transition-all duration-300 hover:border-teal-500/70 hover:shadow-2xl hover:shadow-teal-500/10 transform hover:-translate-y-2 flex flex-col relative">
                         <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-red-500 text-white font-bold px-4 py-1 rounded-full text-sm animate-pulse">
                             LIMITED TIME OFFER
@@ -651,7 +692,7 @@ const PlansScreen = ({ onPlanSelect, setModal, goBack, db, isProcessingPayment, 
                         </button>
                     </div>
 
-                    <div className="w-full max-w-sm mx-auto bg-gray-900/50 backdrop-blur-sm border-2 border-teal-400 rounded-2xl p-8 text-center relative shadow-2xl shadow-teal-500/20 transform lg:scale-105 flex flex-col">
+                    <div className="w-full max-w-sm mx-auto bg-gray-900/50 backdrop-blur-sm border-2 border-teal-400 rounded-2xl p-8 text-center relative shadow-2xl shadow-teal-500/20 transform flex flex-col">
                         <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-teal-400 text-gray-900 font-bold px-4 py-1 rounded-full text-sm">
                             BEST VALUE
                         </div>
@@ -1587,7 +1628,7 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold text-teal-400">My Profile</h2>
                     <button onClick={() => setIsProfileModalOpen(false)} className="p-1 rounded-full hover:bg-gray-700">
-                        <Icon path="M6 18L18 6M6 6l12 12" className="h-5 w-5" />
+                        <Icon path="M6 18L18 6M6 6l12 12" className="h-5 w-5 text-gray-400" />
                     </button>
                 </div>
                 <div className="space-y-4">
@@ -1744,26 +1785,12 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
     );
 }
 
-const AdminLogin = ({ onAdminLogin, setView, setModal }) => {
+const AdminLogin = ({ onAdminLogin, isLoading, setView, setModal }) => {
     const [password, setPassword] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = (e) => {
         e.preventDefault();
-        setIsLoading(true);
-        try {
-            // Simulate async check with a timeout
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            if (password === ADMIN_PASSWORD) {
-                onAdminLogin();
-            } else {
-                setModal({ isOpen: true, type: 'alert', message: 'Incorrect password.' });
-            }
-        } finally {
-            // This ensures the loading state is always reset, whether login succeeds or fails.
-            setIsLoading(false);
-        }
+        onAdminLogin(password);
     };
 
     return (
@@ -1811,6 +1838,7 @@ const AdminPanel = ({ db, setView, setModal }) => {
     const [newCoupon, setNewCoupon] = useState({ code: '', discountPercentage: 10, isActive: true });
     const [isLoadingCoupons, setIsLoadingCoupons] = useState(true);
     const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+    const [userNotes, setUserNotes] = useState({});
 
     // Fetch coupons and users on component mount
     useEffect(() => {
@@ -1833,6 +1861,12 @@ const AdminPanel = ({ db, setView, setModal }) => {
         const unsubUsers = onSnapshot(usersRef, (querySnapshot) => {
             const usersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setUsers(usersData);
+            // Initialize local notes state from fetched user data
+            const initialNotes = {};
+            usersData.forEach(user => {
+                initialNotes[user.id] = user.userInfo?.notes || '';
+            });
+            setUserNotes(initialNotes);
             setIsLoadingUsers(false);
         }, (error) => {
             console.error("Error fetching users:", error);
@@ -1903,6 +1937,31 @@ const AdminPanel = ({ db, setView, setModal }) => {
         });
     };
 
+    const handleUserTagChange = async (userId, newTag) => {
+        const userRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, userId);
+        try {
+            await updateDoc(userRef, { "userInfo.tag": newTag });
+        } catch (error) {
+            console.error("Error updating user tag:", error);
+            setModal({ isOpen: true, type: 'alert', message: 'Failed to update user tag.' });
+        }
+    };
+
+    const handleUserNotesChange = (userId, notes) => {
+        setUserNotes(prev => ({ ...prev, [userId]: notes }));
+    };
+
+    const saveUserNotes = async (userId) => {
+        const userRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, userId);
+        try {
+            await updateDoc(userRef, { "userInfo.notes": userNotes[userId] || '' });
+            setModal({ isOpen: true, type: 'alert', message: 'Notes saved!' });
+        } catch (error) {
+            console.error("Error saving user notes:", error);
+            setModal({ isOpen: true, type: 'alert', message: 'Failed to save notes.' });
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-950 text-gray-100 p-4 sm:p-8">
             <div className="max-w-7xl mx-auto">
@@ -1913,19 +1972,21 @@ const AdminPanel = ({ db, setView, setModal }) => {
                     </button>
                 </header>
                 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* User Management Section */}
-                    <div className="bg-gray-900/50 border border-gray-700 rounded-xl p-6">
+                    <div className="bg-gray-900/50 border border-gray-700 rounded-xl p-6 lg:col-span-3">
                         <h2 className="text-2xl font-bold text-teal-400 mb-4">User Accounts ({users.length})</h2>
                         {isLoadingUsers ? <p>Loading users...</p> : (
                             <div className="overflow-auto max-h-[600px]">
-                                <table className="min-w-full">
+                                <table className="min-w-full text-sm">
                                     <thead className="sticky top-0 bg-gray-900/80 backdrop-blur-sm">
-                                        <tr className="border-b border-gray-700 text-left text-sm uppercase text-gray-400">
+                                        <tr className="border-b border-gray-700 text-left text-xs uppercase text-gray-400">
                                             <th className="p-3">Access Code</th>
                                             <th className="p-3">Plan</th>
                                             <th className="p-3">Expiry</th>
                                             <th className="p-3">Status</th>
+                                            <th className="p-3">Tag</th>
+                                            <th className="p-3">Notes</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1935,11 +1996,32 @@ const AdminPanel = ({ db, setView, setModal }) => {
                                                 <tr key={user.id} className="border-b border-gray-800">
                                                     <td className="p-3 font-mono text-teal-300">{user.id}</td>
                                                     <td className="p-3 capitalize">{user.userInfo.plan}</td>
-                                                    <td className="p-3 text-sm">{new Date(user.userInfo.expiryDate).toLocaleDateString()}</td>
+                                                    <td className="p-3">{new Date(user.userInfo.expiryDate).toLocaleDateString()}</td>
                                                     <td className="p-3">
                                                         <span className={`px-2 py-1 text-xs font-bold rounded-full ${!isExpired ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                                                             {!isExpired ? 'Active' : 'Expired'}
                                                         </span>
+                                                    </td>
+                                                    <td className="p-3">
+                                                        <select
+                                                            value={user.userInfo.tag || ''}
+                                                            onChange={(e) => handleUserTagChange(user.id, e.target.value)}
+                                                            className="w-full p-1 bg-gray-800 border border-gray-600 rounded"
+                                                        >
+                                                            <option value="">- Select -</option>
+                                                            {USER_TAGS.map(tag => <option key={tag} value={tag}>{tag}</option>)}
+                                                        </select>
+                                                    </td>
+                                                    <td className="p-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <textarea
+                                                                value={userNotes[user.id] || ''}
+                                                                onChange={(e) => handleUserNotesChange(user.id, e.target.value)}
+                                                                className="w-full p-1 bg-gray-800 border border-gray-600 rounded text-xs"
+                                                                rows="2"
+                                                            />
+                                                            <button onClick={() => saveUserNotes(user.id)} className="p-1 text-xs bg-teal-600 rounded hover:bg-teal-700">Save</button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             );
@@ -1951,7 +2033,7 @@ const AdminPanel = ({ db, setView, setModal }) => {
                     </div>
                     
                     {/* Coupon Management Section */}
-                    <div>
+                    <div className="lg:col-span-3">
                         <div className="bg-gray-900/50 border border-gray-700 rounded-xl p-6 mb-8">
                             <h2 className="text-2xl font-bold text-teal-400 mb-4">Add New Coupon</h2>
                             <form onSubmit={handleAddCoupon} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
@@ -2014,12 +2096,38 @@ const AdminPanel = ({ db, setView, setModal }) => {
     );
 };
 
+const PaymentSuccessScreen = ({ details, setView }) => {
+    return (
+        <div className="min-h-screen bg-gray-950 flex flex-col justify-center items-center p-4 text-gray-100 font-sans">
+            <div className="absolute inset-0 -z-10 h-full w-full bg-gray-950 bg-[radial-gradient(#14b8a6_1px,transparent_1px)] [background-size:16px_16px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)]"></div>
+            <div className="w-full max-w-lg text-center bg-gray-900/50 backdrop-blur-sm border border-teal-600 rounded-2xl shadow-2xl p-8 md:p-12">
+                <div className="mx-auto mb-6 h-16 w-16 flex items-center justify-center rounded-full bg-green-500/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+                <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-300 to-emerald-500">Payment Successful!</h1>
+                <p className="text-gray-300 mt-4 text-lg">Your account is now active. Welcome aboard!</p>
+                <div className="my-8 p-4 bg-gray-800 border border-dashed border-gray-600 rounded-lg">
+                    <p className="text-gray-400 text-sm mb-2">Your Secure Access Code is:</p>
+                    <p className="text-3xl font-bold font-mono tracking-widest text-teal-300">{details.accessCode}</p>
+                    <p className="text-xs text-amber-400 mt-3">Please save this code. You will need it to log in.</p>
+                </div>
+                <button onClick={() => setView('login')} className="w-full p-4 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-all transform hover:scale-105">
+                    Proceed to Login
+                </button>
+            </div>
+        </div>
+    );
+};
+
 
 // --- MAIN APP COMPONENT ---
 const App = () => {
-    const [view, setView] = useState('landing'); // landing, login, register, plans, dashboard, admin, admin-login
+    const [view, setView] = useState('landing'); // landing, login, userDetails, register, plans, dashboard, admin, admin-login, paymentSuccess
     const [viewHistory, setViewHistory] = useState([]);
     const [registrationDetails, setRegistrationDetails] = useState(null);
+    const [paymentSuccessDetails, setPaymentSuccessDetails] = useState(null);
     const [allData, setAllData] = useState(null);
     const [loggedInCode, setLoggedInCode] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -2030,6 +2138,7 @@ const App = () => {
     const [auth, setAuth] = useState(null);
     const [isRenewalFlow, setIsRenewalFlow] = useState(false);
     const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+    const [isAuthLoading, setIsAuthLoading] = useState(false);
 
     // Function to change view and manage history for back button
     const navigateTo = (newView) => {
@@ -2055,28 +2164,25 @@ const App = () => {
 
     // Initialize Firebase and Auth
     useEffect(() => {
-        if (Object.keys(firebaseConfig).length > 0) {
-            try {
-                const app = initializeApp(firebaseConfig);
-                const firestore = getFirestore(app);
-                const authInstance = getAuth(app);
-                setDb(firestore);
-                setAuth(authInstance);
+        try {
+            const app = initializeApp(firebaseConfig);
+            const firestore = getFirestore(app);
+            const authInstance = getAuth(app);
+            setDb(firestore);
+            setAuth(authInstance);
 
-                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-                if (initialAuthToken) {
-                    signInWithCustomToken(authInstance, initialAuthToken).catch(error => { console.error("Custom token sign-in error:", error); signInAnonymously(authInstance); });
-                } else {
-                    signInAnonymously(authInstance);
-                }
-            } catch (error) {
-                console.error("Firebase initialization error:", error);
-                setModal({isOpen: true, type: 'alert', message: 'Could not connect to the database.'});
+            // FIX: Check if the token has a valid JWT format before trying to use it.
+            if (INITIAL_AUTH_TOKEN && INITIAL_AUTH_TOKEN.split('.').length === 3) {
+                signInWithCustomToken(authInstance, INITIAL_AUTH_TOKEN).catch(error => { 
+                    console.error("Custom token sign-in error:", error); 
+                    signInAnonymously(authInstance); 
+                });
+            } else {
+                signInAnonymously(authInstance);
             }
-        } else {
-            console.log("Firebase config not available. Skipping initialization.");
-            setIsLoading(false);
+        } catch (error) {
+            console.error("Firebase initialization error:", error);
+            setModal({isOpen: true, type: 'alert', message: 'Could not connect to the database.'});
         }
     }, []);
 
@@ -2103,7 +2209,7 @@ const App = () => {
                 const savedCode = localStorage.getItem(SESSION_KEY);
                 if (savedCode) {
                     setLoggedInCode(savedCode);
-                    // No direct navigation here, let the data fetching useEffect handle it
+                    navigateTo('dashboard');
                 } else {
                     setView('landing'); // Default to landing if not logged in
                 }
@@ -2136,7 +2242,6 @@ const App = () => {
             };
             setAllData(testUserData);
             setIsLoading(false);
-            navigateTo('dashboard'); // Navigate to dashboard for test user
             return; 
         }
 
@@ -2157,7 +2262,6 @@ const App = () => {
             };
             setAllData(testUserData);
             setIsLoading(false);
-            navigateTo('dashboard'); // Navigate to dashboard for test user
             return;
         }
 
@@ -2170,7 +2274,6 @@ const App = () => {
         const unsubscribe = onSnapshot(docRef, (docSnap) => {
             if (docSnap.exists()) {
                 setAllData(docSnap.data());
-                navigateTo('dashboard'); // Navigate to dashboard once data is loaded
             } else {
                 setModal({isOpen: true, type: 'alert', message: 'Invalid Access Code.'});
                 handleLogout();
@@ -2205,7 +2308,7 @@ const App = () => {
         if ((code === '0000000000' || code === '1111111111') && password === 'test') {
             localStorage.setItem(SESSION_KEY, code);
             setLoggedInCode(code);
-            // navigateTo('dashboard'); // Removed, let useEffect handle it
+            navigateTo('dashboard');
             return;
         }
 
@@ -2221,12 +2324,12 @@ const App = () => {
                 if (data.userInfo.password === password) {
                     localStorage.setItem(SESSION_KEY, code);
                     setLoggedInCode(code);
-                    // navigateTo('dashboard'); // Removed, let useEffect handle it
+                    navigateTo('dashboard');
                 } else {
                     setModal({ isOpen: true, type: 'alert', message: 'Invalid password.' });
                 }
             } else {
-                setModal({ isOpen: true, type: 'alert', message: 'Account not found. Please register.' });
+                setModal({ isOpen: true, type: 'alert', message: 'Invalid Access Code.' });
             }
         } catch (error) {
             console.error("Login error:", error);
@@ -2248,83 +2351,10 @@ const App = () => {
         setNotification({ show: true, message });
         setTimeout(() => setNotification({ show: false, message: '' }), 3000);
     };
-    
-    /**
-     * This function simulates a serverless backend function.
-     * In a real Vercel deployment, this logic should be moved to a file like `/api/verify-payment.js`.
-     * It would securely verify the payment signature from Razorpay before updating the database.
-     */
-    const verifyPaymentAndCreateUser = async (paymentResponse, planDetails) => {
-        const { planType, amountInPaise } = planDetails;
-        try {
-            // --- IMPORTANT SECURITY STEP (Simulated) ---
-            // In a real backend, you would get a `razorpay_signature` from the client
-            // and verify it here using your Razorpay Key Secret to ensure the payment is authentic.
-            // Since we can't store secrets on the client, we are trusting the callback for this demo.
-            // const isSignatureValid = Razorpay.validateWebhookSignature(...);
-            // if (!isSignatureValid) { throw new Error("Invalid payment signature."); }
 
-            const newPaymentRecord = {
-                paymentId: paymentResponse.razorpay_payment_id,
-                plan: planType,
-                amount: amountInPaise,
-                date: new Date().toISOString()
-            };
-
-            if (isRenewalFlow) {
-                // --- RENEWAL LOGIC ---
-                const days = planType === 'monthly' ? 30 : 365;
-                const newExpiryDate = new Date().getTime() + days * 24 * 60 * 60 * 1000;
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, loggedInCode);
-                const docSnap = await getDoc(docRef);
-
-                if (docSnap.exists()) {
-                    const existingData = docSnap.data();
-                    const paymentHistory = existingData.userInfo.paymentHistory || [];
-                    const updatedUserInfo = {
-                        ...existingData.userInfo,
-                        plan: planType,
-                        expiryDate: newExpiryDate,
-                        paymentHistory: [...paymentHistory, newPaymentRecord]
-                    };
-                    await setDoc(docRef, { userInfo: updatedUserInfo }, { merge: true });
-                    return { success: true };
-                } else {
-                    throw new Error('Could not find user account for renewal.');
-                }
-            } else {
-                // --- NEW REGISTRATION LOGIC ---
-                if (!registrationDetails) {
-                    throw new Error("Registration details are missing.");
-                }
-                const { accessCode, password } = registrationDetails;
-                const days = planType === 'monthly' ? 30 : 365;
-                const expiryDate = new Date().getTime() + days * 24 * 60 * 60 * 1000;
-                const initialData = { 
-                    userInfo: { 
-                        password: password,
-                        createdAt: new Date().toISOString(),
-                        plan: planType,
-                        expiryDate: expiryDate,
-                        paymentHistory: [newPaymentRecord]
-                    }, 
-                    journals: [], 
-                    trades: {} 
-                };
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, accessCode);
-                await setDoc(docRef, initialData);
-                return { success: true, accessCode: accessCode };
-            }
-        } catch (error) {
-            console.error("Error during server-side verification/database update:", error);
-            return { success: false, error: error.message };
-        }
-    };
-
-
-    const handlePlanPayment = async (planType, amountInPaise) => {
-        if (RAZORPAY_KEY_ID === 'YOUR_KEY_ID_HERE' || !window.Razorpay) {
-            setModal({isOpen: true, type: 'alert', message: 'Payment gateway is not configured. Please contact the administrator.'});
+    const handlePlanPayment = (planType, amountInPaise) => {
+        if (!window.Razorpay) {
+            setModal({isOpen: true, type: 'alert', message: 'Payment gateway is not ready. Please try again in a moment.'});
             return;
         }
         
@@ -2337,35 +2367,73 @@ const App = () => {
             name: "Pro Trader Journal",
             description: isRenewalFlow ? `Renew ${planType} Plan` : `Activate ${planType} Plan`,
             handler: async (response) => {
-                // The payment was successful. Now, call our backend simulation function to verify and update the database.
-                const result = await verifyPaymentAndCreateUser(response, { planType, amountInPaise });
-                
-                setIsProcessingPayment(false); // Set to false when handler completes
+                // Since this is a client-only deployment, we handle the database update directly here.
+                // This is NOT secure for a production app with multiple users, but per user request.
+                try {
+                    // FIX: Removed redundant and faulty destructuring
+                    const newPaymentRecord = {
+                        paymentId: response.razorpay_payment_id,
+                        plan: planType,
+                        amount: amountInPaise,
+                        date: new Date().toISOString()
+                    };
 
-                if (result.success) {
-                    showSuccessNotification('Payment Successful! Account Updated.');
                     if (isRenewalFlow) {
+                        const days = planType === 'monthly' ? 30 : 365;
+                        const newExpiryDate = new Date().getTime() + days * 24 * 60 * 60 * 1000;
+                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, loggedInCode);
+                        
+                        const docSnap = await getDoc(docRef);
+                        if (!docSnap.exists()) throw new Error('User not found for renewal.');
+                        
+                        const existingData = docSnap.data();
+                        const paymentHistory = existingData.userInfo.paymentHistory || [];
+                        
+                        await setDoc(docRef, { 
+                            userInfo: { 
+                                ...existingData.userInfo,
+                                plan: planType,
+                                expiryDate: newExpiryDate,
+                                paymentHistory: [...paymentHistory, newPaymentRecord]
+                            } 
+                        }, { merge: true });
+                        showSuccessNotification('Plan Renewed Successfully!');
                         setIsRenewalFlow(false);
-                        navigateTo('dashboard'); // Directly navigate to dashboard after renewal
+                        navigateTo('dashboard');
+
                     } else {
-                        // For new registrations, store the access code and navigate to login
-                        localStorage.setItem(SESSION_KEY, result.accessCode); // Store the new access code
-                        setLoggedInCode(result.accessCode); // Update loggedInCode state
-                        navigateTo('login'); // Redirect to login for the new user to sign in
+                        const { name, email, mobile, accessCode, password } = registrationDetails;
+                        const days = planType === 'monthly' ? 30 : 365;
+                        const expiryDate = new Date().getTime() + days * 24 * 60 * 60 * 1000;
+                        const initialData = { 
+                            userInfo: { 
+                                name, email, mobile, password,
+                                createdAt: new Date().toISOString(),
+                                plan: planType,
+                                expiryDate: expiryDate,
+                                paymentHistory: [newPaymentRecord],
+                                tag: 'New User',
+                                notes: ''
+                            }, 
+                            journals: [], 
+                            trades: {} 
+                        };
+                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, accessCode);
+                        await setDoc(docRef, initialData);
+                        setPaymentSuccessDetails({ accessCode: accessCode });
+                        navigateTo('paymentSuccess');
                     }
-                } else {
-                    // The payment went through, but our backend logic failed.
-                    setModal({
-                        isOpen: true,
-                        type: 'alert',
-                        message: `Your payment was successful, but there was an error activating your account. Please contact support with Payment ID: ${response.razorpay_payment_id}. Error: ${result.error}`
-                    });
+                } catch(error) {
+                    console.error("DATABASE UPDATE ERROR:", error);
+                    setModal({ isOpen: true, type: 'alert', message: `Payment was successful, but we couldn't update your account. Please contact support with Payment ID: ${response.razorpay_payment_id}` });
+                } finally {
+                    setIsProcessingPayment(false);
                 }
             },
             prefill: {
-                name: "Trader",
-                email: "trader@example.com",
-                contact: "9999999999"
+                name: registrationDetails?.name || '',
+                email: registrationDetails?.email || '',
+                contact: registrationDetails?.mobile || ''
             },
             notes: {
                 accessCode: isRenewalFlow ? loggedInCode : (registrationDetails ? registrationDetails.accessCode : 'N/A')
@@ -2375,9 +2443,8 @@ const App = () => {
             },
             modal: {
                 ondismiss: () => {
-                    setIsProcessingPayment(false); // Always reset ondismiss
-                    // Only show cancellation message if the user actively closed the modal and it wasn't a success
-                    if (!isProcessingPayment) { // Check if it's already set to false by successful handler
+                    if (isProcessingPayment) {
+                        setIsProcessingPayment(false);
                         setModal({isOpen: true, type: 'alert', message: 'Payment was cancelled.'});
                     }
                 }
@@ -2388,7 +2455,7 @@ const App = () => {
             const rzp = new window.Razorpay(options);
             rzp.on('payment.failed', function (response){
                 setModal({isOpen: true, type: 'alert', message: `Payment failed: ${response.error.description}`});
-                setIsProcessingPayment(false); // Also reset on payment failure
+                setIsProcessingPayment(false);
             });
             rzp.open();
         } catch (error) {
@@ -2411,15 +2478,30 @@ const App = () => {
              setModal({ isOpen: false });
         }
     };
+
+    const handleAdminLogin = (password) => {
+        setIsAuthLoading(true);
+        setTimeout(() => {
+            if (password === ADMIN_PASSWORD) {
+                setIsAdminAuthenticated(true);
+                navigateTo('admin');
+            } else {
+                setModal({ isOpen: true, type: 'alert', message: 'Incorrect password.' });
+            }
+            setIsAuthLoading(false);
+        }, 100);
+    };
     
     const renderView = () => {
         switch(view) {
             case 'landing': return <LandingPage setView={navigateTo} />;
+            case 'userDetails': return <UserDetailsScreen setView={navigateTo} setRegistrationDetails={setRegistrationDetails} goBack={goBack} />;
             case 'register': return <RegisterScreen setView={navigateTo} setRegistrationDetails={setRegistrationDetails} db={db} setModal={setModal} goBack={goBack} />;
-            case 'plans': return <PlansScreen onPlanSelect={handlePlanPayment} setModal={setModal} goBack={goBack} db={db} isProcessingPayment={isProcessingPayment} registrationDetails={registrationDetails} handleLogin={handleLogin} showSuccessNotification={showSuccessNotification} />;
+            case 'plans': return <PlansScreen onPlanSelect={handlePlanPayment} setModal={setModal} goBack={goBack} db={db} isProcessingPayment={isProcessingPayment} />;
             case 'dashboard': return <Dashboard allData={allData} updateData={updateData} userId={loggedInCode} onLogout={handleLogout} modal={modal} setModal={setModal} db={db} setView={navigateTo} handleStartRenewal={handleStartRenewal} />;
-            case 'admin-login': return <AdminLogin onAdminLogin={() => { setIsAdminAuthenticated(true); navigateTo('admin'); }} setView={navigateTo} setModal={setModal} />;
-            case 'admin': return isAdminAuthenticated ? <AdminPanel db={db} setView={navigateTo} setModal={setModal} /> : <AdminLogin onAdminLogin={() => { setIsAdminAuthenticated(true); navigateTo('admin'); }} setView={navigateTo} setModal={setModal} />;
+            case 'admin-login': return <AdminLogin onAdminLogin={handleAdminLogin} isLoading={isAuthLoading} setView={navigateTo} setModal={setModal} />;
+            case 'admin': return isAdminAuthenticated ? <AdminPanel db={db} setView={navigateTo} setModal={setModal} /> : <AdminLogin onAdminLogin={handleAdminLogin} isLoading={isAuthLoading} setView={navigateTo} setModal={setModal} />;
+            case 'paymentSuccess': return <PaymentSuccessScreen details={paymentSuccessDetails} setView={navigateTo} />;
             case 'login': default: return <LoginScreen onLogin={handleLogin} setModal={setModal} setView={navigateTo} db={db} />;
         }
     };
