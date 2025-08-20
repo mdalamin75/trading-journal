@@ -5,7 +5,6 @@ import {
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
 import { getFirestore, doc, onSnapshot, setDoc, getDoc, updateDoc, arrayUnion, collection, getDocs, deleteDoc } from "firebase/firestore";
-import html2canvas from 'html2canvas';
 
 
 // --- CONSTANTS & CONFIG ---
@@ -15,22 +14,22 @@ const SESSION_KEY = 'proTraderAccessCode';
 const DB_COLLECTION_NAME = 'pro_trader_journals';
 const COUPONS_COLLECTION_NAME = 'coupons';
 const ADMIN_PASSWORD = 'Pujan@123'; // The password for the admin panel
-const XPONENTIAL_LOGO_BASE_64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAADMElEQVR4nOzVwQnAMAwEwe9/6G6gBTuI4Sg7Njpb2+d5/g4gwI8CBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAL8B+ALAwAQi3gAAAABJRU5ErkJggg==";
+const XPONENTIAL_LOGO_BASE_64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAADMElEQVR4nOzVwQnAMAwEwe9/6G6gBTuI4Sg7Njpb2+d5/g4gwI8CBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAL8B+ALAwAQi3gAAAABJRU5ErkJggg==";
 
 // --- IMPORTANT: PLACE YOUR RAZORPAY KEY ID HERE ---
 const RAZORPAY_KEY_ID = 'rzp_live_pWNLoIsX4fvAzA';
 
 // --- FIREBASE CONFIG (placeholders, will be handled by environment) ---
 const firebaseConfig = {
-    	apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    	authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    	projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    	storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-    	messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    	appId: import.meta.env.VITE_FIREBASE_APP_ID,
-    };
-    
-    const appId = import.meta.env.VITE_APP_ID || "default-app-id";
+	apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+	authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+	projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+	storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+	messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+	appId: import.meta.env.VITE_FIREBASE_APP_ID,
+};
+
+const appId = import.meta.env.VITE_APP_ID || "default-app-id";
 
 
 // --- HELPER FUNCTIONS ---
@@ -509,7 +508,7 @@ const RegisterScreen = ({ setView, setRegistrationDetails, db, setModal, goBack 
     );
 };
 
-const PlansScreen = ({ onPlanSelect, setModal, goBack, db, isRazorpayReady, isRenewalFlow, registrationDetails }) => {
+const PlansScreen = ({ onPlanSelect, setModal, goBack, db, isProcessingPayment, registrationDetails, handleLogin, showSuccessNotification }) => {
     const [showPreview, setShowPreview] = useState(false);
     const [couponCode, setCouponCode] = useState('');
     const [appliedCoupon, setAppliedCoupon] = useState(null);
@@ -595,6 +594,12 @@ const PlansScreen = ({ onPlanSelect, setModal, goBack, db, isRazorpayReady, isRe
 
     return (
         <div className="min-h-screen bg-gray-950 text-gray-100 font-sans p-4 sm:p-6 lg:p-8 overflow-x-hidden relative">
+            {isProcessingPayment && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex flex-col justify-center items-center z-50">
+                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-teal-400"></div>
+                    <p className="text-white text-xl mt-4">Processing Payment...</p>
+                </div>
+            )}
             <BackButton onClick={goBack} />
             <style>{`
                 .bg-grid {
@@ -641,8 +646,8 @@ const PlansScreen = ({ onPlanSelect, setModal, goBack, db, isRazorpayReady, isRe
                                 {appliedCoupon ? <p className="text-lg text-gray-500 line-through">₹99</p> : <p className="text-lg text-gray-500 line-through">₹300</p>}
                             </div>
                         </div>
-                        <button onClick={() => onPlanSelect('monthly', discountedPrices.monthly)} disabled={!db || !isRazorpayReady || (!isRenewalFlow && !registrationDetails)} className={`w-full p-4 text-white font-bold rounded-xl transition-all duration-300 text-lg shadow-lg mt-4 ${(!db || !isRazorpayReady || (!isRenewalFlow && !registrationDetails)) ? 'bg-gray-600 cursor-not-allowed' : 'bg-gray-700 hover:bg-gray-600'}`}>
-                            {(!db) ? 'Connecting...' : (!isRazorpayReady ? 'Loading Payments...' : 'Get Started')}
+                        <button disabled={isProcessingPayment} onClick={() => onPlanSelect('monthly', discountedPrices.monthly)} className="w-full p-4 bg-gray-700 text-white font-bold rounded-xl hover:bg-gray-600 transition-all duration-300 text-lg shadow-lg mt-4 disabled:bg-gray-500 disabled:cursor-not-allowed">
+                            {isProcessingPayment ? 'Processing...' : 'Get Started'}
                         </button>
                     </div>
 
@@ -659,8 +664,8 @@ const PlansScreen = ({ onPlanSelect, setModal, goBack, db, isRazorpayReady, isRe
                             </div>
                             <p className="text-lg text-gray-400 -mt-2 mb-4">(Just ₹{(discountedPrices.yearly / 12 / 100).toFixed(2)}/mo)</p>
                         </div>
-                        <button onClick={() => onPlanSelect('yearly', discountedPrices.yearly)} disabled={!db || !isRazorpayReady || (!isRenewalFlow && !registrationDetails)} className={`w-full p-4 text-white font-bold rounded-xl transition-opacity duration-300 text-lg shadow-lg shadow-teal-500/30 mt-4 ${(!db || !isRazorpayReady || (!isRenewalFlow && !registrationDetails)) ? 'bg-gray-500 cursor-not-allowed' : 'bg-gradient-to-r from-teal-400 to-cyan-500 hover:opacity-90'}`}>
-                            {(!db) ? 'Connecting...' : (!isRazorpayReady ? 'Loading Payments...' : 'Go Pro Yearly')}
+                        <button disabled={isProcessingPayment} onClick={() => onPlanSelect('yearly', discountedPrices.yearly)} className="w-full p-4 bg-gradient-to-r from-teal-400 to-cyan-500 text-white font-bold rounded-xl hover:opacity-90 transition-opacity duration-300 text-lg shadow-lg shadow-teal-500/30 mt-4 disabled:opacity-50 disabled:cursor-not-allowed">
+                             {isProcessingPayment ? 'Processing...' : 'Go Pro Yearly'}
                         </button>
                     </div>
                 </div>
@@ -1582,7 +1587,7 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold text-teal-400">My Profile</h2>
                     <button onClick={() => setIsProfileModalOpen(false)} className="p-1 rounded-full hover:bg-gray-700">
-                        <Icon path="M6 18L18 6M6 6l12 12" className="h-5 w-5 text-gray-400" />
+                        <Icon path="M6 18L18 6M6 6l12 12" className="h-5 w-5" />
                     </button>
                 </div>
                 <div className="space-y-4">
@@ -2018,13 +2023,13 @@ const App = () => {
     const [allData, setAllData] = useState(null);
     const [loggedInCode, setLoggedInCode] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isProcessingPayment, setIsProcessingPayment] = useState(false);
     const [modal, setModal] = useState({ isOpen: false, type: 'alert', message: '', onConfirm: null, defaultValues: null });
     const [notification, setNotification] = useState({ show: false, message: '' });
     const [db, setDb] = useState(null);
     const [auth, setAuth] = useState(null);
     const [isRenewalFlow, setIsRenewalFlow] = useState(false);
     const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
-    const [isRazorpayReady, setIsRazorpayReady] = useState(false);
 
     // Function to change view and manage history for back button
     const navigateTo = (newView) => {
@@ -2050,14 +2055,7 @@ const App = () => {
 
     // Initialize Firebase and Auth
     useEffect(() => {
-        const isFirebaseConfigValid = Boolean(
-            firebaseConfig?.apiKey &&
-            firebaseConfig?.authDomain &&
-            firebaseConfig?.projectId &&
-            firebaseConfig?.appId
-        );
-
-        if (isFirebaseConfigValid) {
+        if (Object.keys(firebaseConfig).length > 0) {
             try {
                 const app = initializeApp(firebaseConfig);
                 const firestore = getFirestore(app);
@@ -2090,12 +2088,6 @@ const App = () => {
             script.id = id;
             script.src = src;
             script.async = true;
-            script.onload = () => {
-                if (id === 'razorpay-checkout-js') setIsRazorpayReady(true);
-            };
-            script.onerror = () => {
-                if (id === 'razorpay-checkout-js') setIsRazorpayReady(false);
-            };
             document.body.appendChild(script);
         };
         loadScript('https://checkout.razorpay.com/v1/checkout.js', 'razorpay-checkout-js');
@@ -2111,7 +2103,7 @@ const App = () => {
                 const savedCode = localStorage.getItem(SESSION_KEY);
                 if (savedCode) {
                     setLoggedInCode(savedCode);
-                    navigateTo('dashboard');
+                    // No direct navigation here, let the data fetching useEffect handle it
                 } else {
                     setView('landing'); // Default to landing if not logged in
                 }
@@ -2144,6 +2136,7 @@ const App = () => {
             };
             setAllData(testUserData);
             setIsLoading(false);
+            navigateTo('dashboard'); // Navigate to dashboard for test user
             return; 
         }
 
@@ -2164,6 +2157,7 @@ const App = () => {
             };
             setAllData(testUserData);
             setIsLoading(false);
+            navigateTo('dashboard'); // Navigate to dashboard for test user
             return;
         }
 
@@ -2176,6 +2170,7 @@ const App = () => {
         const unsubscribe = onSnapshot(docRef, (docSnap) => {
             if (docSnap.exists()) {
                 setAllData(docSnap.data());
+                navigateTo('dashboard'); // Navigate to dashboard once data is loaded
             } else {
                 setModal({isOpen: true, type: 'alert', message: 'Invalid Access Code.'});
                 handleLogout();
@@ -2210,7 +2205,7 @@ const App = () => {
         if ((code === '0000000000' || code === '1111111111') && password === 'test') {
             localStorage.setItem(SESSION_KEY, code);
             setLoggedInCode(code);
-            navigateTo('dashboard');
+            // navigateTo('dashboard'); // Removed, let useEffect handle it
             return;
         }
 
@@ -2226,12 +2221,12 @@ const App = () => {
                 if (data.userInfo.password === password) {
                     localStorage.setItem(SESSION_KEY, code);
                     setLoggedInCode(code);
-                    navigateTo('dashboard');
+                    // navigateTo('dashboard'); // Removed, let useEffect handle it
                 } else {
                     setModal({ isOpen: true, type: 'alert', message: 'Invalid password.' });
                 }
             } else {
-                setModal({ isOpen: true, type: 'alert', message: 'Invalid Access Code.' });
+                setModal({ isOpen: true, type: 'alert', message: 'Account not found. Please register.' });
             }
         } catch (error) {
             console.error("Login error:", error);
@@ -2253,25 +2248,87 @@ const App = () => {
         setNotification({ show: true, message });
         setTimeout(() => setNotification({ show: false, message: '' }), 3000);
     };
+    
+    /**
+     * This function simulates a serverless backend function.
+     * In a real Vercel deployment, this logic should be moved to a file like `/api/verify-payment.js`.
+     * It would securely verify the payment signature from Razorpay before updating the database.
+     */
+    const verifyPaymentAndCreateUser = async (paymentResponse, planDetails) => {
+        const { planType, amountInPaise } = planDetails;
+        try {
+            // --- IMPORTANT SECURITY STEP (Simulated) ---
+            // In a real backend, you would get a `razorpay_signature` from the client
+            // and verify it here using your Razorpay Key Secret to ensure the payment is authentic.
+            // Since we can't store secrets on the client, we are trusting the callback for this demo.
+            // const isSignatureValid = Razorpay.validateWebhookSignature(...);
+            // if (!isSignatureValid) { throw new Error("Invalid payment signature."); }
+
+            const newPaymentRecord = {
+                paymentId: paymentResponse.razorpay_payment_id,
+                plan: planType,
+                amount: amountInPaise,
+                date: new Date().toISOString()
+            };
+
+            if (isRenewalFlow) {
+                // --- RENEWAL LOGIC ---
+                const days = planType === 'monthly' ? 30 : 365;
+                const newExpiryDate = new Date().getTime() + days * 24 * 60 * 60 * 1000;
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, loggedInCode);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const existingData = docSnap.data();
+                    const paymentHistory = existingData.userInfo.paymentHistory || [];
+                    const updatedUserInfo = {
+                        ...existingData.userInfo,
+                        plan: planType,
+                        expiryDate: newExpiryDate,
+                        paymentHistory: [...paymentHistory, newPaymentRecord]
+                    };
+                    await setDoc(docRef, { userInfo: updatedUserInfo }, { merge: true });
+                    return { success: true };
+                } else {
+                    throw new Error('Could not find user account for renewal.');
+                }
+            } else {
+                // --- NEW REGISTRATION LOGIC ---
+                if (!registrationDetails) {
+                    throw new Error("Registration details are missing.");
+                }
+                const { accessCode, password } = registrationDetails;
+                const days = planType === 'monthly' ? 30 : 365;
+                const expiryDate = new Date().getTime() + days * 24 * 60 * 60 * 1000;
+                const initialData = { 
+                    userInfo: { 
+                        password: password,
+                        createdAt: new Date().toISOString(),
+                        plan: planType,
+                        expiryDate: expiryDate,
+                        paymentHistory: [newPaymentRecord]
+                    }, 
+                    journals: [], 
+                    trades: {} 
+                };
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, accessCode);
+                await setDoc(docRef, initialData);
+                return { success: true, accessCode: accessCode };
+            }
+        } catch (error) {
+            console.error("Error during server-side verification/database update:", error);
+            return { success: false, error: error.message };
+        }
+    };
+
 
     const handlePlanPayment = async (planType, amountInPaise) => {
-        if (!db) {
-            setModal({ isOpen: true, type: 'alert', message: 'Cannot start payment: database is not connected.' });
-            return;
-        }
-
-        if (!isRenewalFlow && !registrationDetails) {
-            setModal({ isOpen: true, type: 'alert', message: 'Please complete registration first.' });
-            navigateTo('register');
-            return;
-        }
-
-        if (!window.Razorpay) {
-            setModal({ isOpen: true, type: 'alert', message: 'Payment gateway is initializing. Please wait a moment and try again.' });
+        if (RAZORPAY_KEY_ID === 'YOUR_KEY_ID_HERE' || !window.Razorpay) {
+            setModal({isOpen: true, type: 'alert', message: 'Payment gateway is not configured. Please contact the administrator.'});
             return;
         }
         
-        setIsLoading(true);
+        setIsProcessingPayment(true);
 
         const options = {
             key: RAZORPAY_KEY_ID,
@@ -2280,80 +2337,29 @@ const App = () => {
             name: "Pro Trader Journal",
             description: isRenewalFlow ? `Renew ${planType} Plan` : `Activate ${planType} Plan`,
             handler: async (response) => {
-                try {
-                    const newPaymentRecord = {
-                        paymentId: response.razorpay_payment_id,
-                        plan: planType,
-                        amount: amountInPaise,
-                        date: new Date().toISOString()
-                    };
+                // The payment was successful. Now, call our backend simulation function to verify and update the database.
+                const result = await verifyPaymentAndCreateUser(response, { planType, amountInPaise });
+                
+                setIsProcessingPayment(false); // Set to false when handler completes
 
+                if (result.success) {
+                    showSuccessNotification('Payment Successful! Account Updated.');
                     if (isRenewalFlow) {
-                        // --- RENEWAL LOGIC ---
-                        const days = planType === 'monthly' ? 30 : 365;
-                        const newExpiryDate = new Date().getTime() + days * 24 * 60 * 60 * 1000;
-                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, loggedInCode);
-                        const docSnap = await getDoc(docRef);
-
-                        if (docSnap.exists()) {
-                            const existingData = docSnap.data();
-                            const paymentHistory = existingData.userInfo.paymentHistory || [];
-                            const updatedUserInfo = {
-                                ...existingData.userInfo,
-                                plan: planType,
-                                expiryDate: newExpiryDate,
-                                paymentHistory: [...paymentHistory, newPaymentRecord]
-                            };
-                            await setDoc(docRef, { userInfo: updatedUserInfo }, { merge: true });
-                            showSuccessNotification('Plan Renewed Successfully!');
-                            setIsRenewalFlow(false);
-                            navigateTo('dashboard');
-                        } else {
-                            throw new Error('Could not find user account for renewal.');
-                        }
+                        setIsRenewalFlow(false);
+                        navigateTo('dashboard'); // Directly navigate to dashboard after renewal
                     } else {
-                        // --- NEW REGISTRATION LOGIC ---
-                        if (!registrationDetails) {
-                            throw new Error("Registration details are missing during payment handling.");
-                        }
-                        const { accessCode, password } = registrationDetails;
-                        const days = planType === 'monthly' ? 30 : 365;
-                        const expiryDate = new Date().getTime() + days * 24 * 60 * 60 * 1000;
-                        const initialData = { 
-                            userInfo: { 
-                                password: password,
-                                createdAt: new Date().toISOString(),
-                                plan: planType,
-                                expiryDate: expiryDate,
-                                paymentHistory: [newPaymentRecord]
-                            }, 
-                            journals: [], 
-                            trades: {} 
-                        };
-                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, accessCode);
-                        await setDoc(docRef, initialData);
-                        
-                        // **FIX**: Show success modal with access code instead of auto-login
-                        setModal({
-                            isOpen: true,
-                            type: 'alert',
-                            message: `Account created successfully! Your Access Code is: ${accessCode}.\nPlease log in to continue.`,
-                            onConfirm: () => {
-                                setModal({ isOpen: false });
-                                navigateTo('login');
-                            }
-                        });
-                        
+                        // For new registrations, store the access code and navigate to login
+                        localStorage.setItem(SESSION_KEY, result.accessCode); // Store the new access code
+                        setLoggedInCode(result.accessCode); // Update loggedInCode state
+                        navigateTo('login'); // Redirect to login for the new user to sign in
                     }
-                } catch (error) {
-                    console.error("Error processing payment success handler:", error);
+                } else {
+                    // The payment went through, but our backend logic failed.
                     setModal({
                         isOpen: true,
                         type: 'alert',
-                        message: `Your payment was successful, but there was an error activating your account. Please contact support with Payment ID: ${response.razorpay_payment_id}`
+                        message: `Your payment was successful, but there was an error activating your account. Please contact support with Payment ID: ${response.razorpay_payment_id}. Error: ${result.error}`
                     });
-                } finally {
-                    setIsLoading(false);
                 }
             },
             prefill: {
@@ -2369,18 +2375,27 @@ const App = () => {
             },
             modal: {
                 ondismiss: () => {
-                    setIsLoading(false);
-                    setModal({isOpen: true, type: 'alert', message: 'Payment was cancelled.'});
+                    setIsProcessingPayment(false); // Always reset ondismiss
+                    // Only show cancellation message if the user actively closed the modal and it wasn't a success
+                    if (!isProcessingPayment) { // Check if it's already set to false by successful handler
+                        setModal({isOpen: true, type: 'alert', message: 'Payment was cancelled.'});
+                    }
                 }
             }
         };
 
-        const rzp = new window.Razorpay(options);
-        rzp.on('payment.failed', function (response){
-            setModal({isOpen: true, type: 'alert', message: `Payment failed: ${response.error.description}`});
-            setIsLoading(false);
-        });
-        rzp.open();
+        try {
+            const rzp = new window.Razorpay(options);
+            rzp.on('payment.failed', function (response){
+                setModal({isOpen: true, type: 'alert', message: `Payment failed: ${response.error.description}`});
+                setIsProcessingPayment(false); // Also reset on payment failure
+            });
+            rzp.open();
+        } catch (error) {
+            console.error("Razorpay initialization error:", error);
+            setModal({isOpen: true, type: 'alert', message: 'Could not initiate payment. Please check your connection and try again.'});
+            setIsProcessingPayment(false);
+        }
     };
 
 
@@ -2390,8 +2405,6 @@ const App = () => {
     };
 
     const handleModalClose = () => {
-        // **FIX**: Check if there's a specific onConfirm action before executing it.
-        // This prevents the 'Cancel' button from triggering a save action.
         if (modal.onConfirm && modal.type !== 'editTrade' && modal.type !== 'createJournal') {
              modal.onConfirm();
         } else {
@@ -2403,7 +2416,7 @@ const App = () => {
         switch(view) {
             case 'landing': return <LandingPage setView={navigateTo} />;
             case 'register': return <RegisterScreen setView={navigateTo} setRegistrationDetails={setRegistrationDetails} db={db} setModal={setModal} goBack={goBack} />;
-            case 'plans': return <PlansScreen onPlanSelect={handlePlanPayment} setModal={setModal} goBack={goBack} db={db} isRazorpayReady={isRazorpayReady} isRenewalFlow={isRenewalFlow} registrationDetails={registrationDetails} />;
+            case 'plans': return <PlansScreen onPlanSelect={handlePlanPayment} setModal={setModal} goBack={goBack} db={db} isProcessingPayment={isProcessingPayment} registrationDetails={registrationDetails} handleLogin={handleLogin} showSuccessNotification={showSuccessNotification} />;
             case 'dashboard': return <Dashboard allData={allData} updateData={updateData} userId={loggedInCode} onLogout={handleLogout} modal={modal} setModal={setModal} db={db} setView={navigateTo} handleStartRenewal={handleStartRenewal} />;
             case 'admin-login': return <AdminLogin onAdminLogin={() => { setIsAdminAuthenticated(true); navigateTo('admin'); }} setView={navigateTo} setModal={setModal} />;
             case 'admin': return isAdminAuthenticated ? <AdminPanel db={db} setView={navigateTo} setModal={setModal} /> : <AdminLogin onAdminLogin={() => { setIsAdminAuthenticated(true); navigateTo('admin'); }} setView={navigateTo} setModal={setModal} />;
