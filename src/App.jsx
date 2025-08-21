@@ -674,7 +674,6 @@ const PlansScreen = ({ onPlanSelect, setModal, goBack, db, isProcessingPayment }
                     </div>
                 </header>
 
-                {/* FIX: Replaced margin-based spacing with gap for consistency */}
                 <div className="flex flex-col md:flex-row items-stretch justify-center gap-8 my-16">
                     <div className="w-full max-w-sm bg-gray-900/50 backdrop-blur-sm border border-teal-800/50 rounded-2xl p-8 text-center transition-all duration-300 hover:border-teal-500/70 hover:shadow-2xl hover:shadow-teal-500/10 transform hover:-translate-y-2 flex flex-col relative">
                         <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-red-500 text-white font-bold px-4 py-1 rounded-full text-sm animate-pulse">
@@ -713,7 +712,6 @@ const PlansScreen = ({ onPlanSelect, setModal, goBack, db, isProcessingPayment }
                 </div>
                 
                 <div className="my-16 max-w-sm mx-auto">
-                    {/* FIX: Wrapped coupon input and button in a form to allow submission on Enter key press */}
                     <form onSubmit={(e) => { e.preventDefault(); handleApplyCoupon(); }} className="flex gap-2">
                         <input type="text" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} placeholder="Enter Coupon Code" className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" />
                         <button type="submit" className="px-6 py-3 bg-gray-700 text-white font-bold rounded-lg hover:bg-gray-600 transition-colors">Apply</button>
@@ -1243,226 +1241,18 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
     
     const handleShare = async () => {
         if (isPreview) { handlePreviewClick(); return; }
-        
-        // Check if the ref is available
-        if (!shareCardRef.current) {
-            setModal({ isOpen: true, type: 'alert', message: 'Share card element not found. Please try again.' });
+        if (!window.html2canvas) {
+            setModal({ isOpen: true, type: 'alert', message: 'Sharing library not loaded. Please try again in a moment.' });
             return;
         }
-        
         setIsLoading(true);
-        
+        // Delay to allow modal to render with new data
+        await new Promise(resolve => setTimeout(resolve, 100));
         try {
-            console.log('Starting custom canvas generation...');
-            console.log('Share data:', shareData);
-            console.log('Share data structure:', {
-                title: shareData?.title,
-                period: shareData?.period,
-                mainMetrics: shareData?.mainMetrics,
-                secondaryMetrics: shareData?.secondaryMetrics,
-                dailyBreakdown: shareData?.dailyBreakdown
+            const canvas = await window.html2canvas(shareCardRef.current, {
+                backgroundColor: null,
+                useCORS: true
             });
-            
-            // Validate share data
-            if (!shareData || !shareData.title || !shareData.period) {
-                throw new Error('Invalid share data. Please try again.');
-            }
-            
-            // Create canvas manually - this is more reliable than html2canvas
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            
-            // Set canvas dimensions (2x for high quality)
-            const width = 960; // 480px * 2
-            const height = 800; // Approximate height * 2
-            canvas.width = width;
-            canvas.height = height;
-            
-            // Fill background
-            ctx.fillStyle = '#1f2937';
-            ctx.fillRect(0, 0, width, height);
-            
-            // Add decorative background elements
-            ctx.fillStyle = 'rgba(20, 184, 166, 0.1)';
-            ctx.beginPath();
-            ctx.arc(width - 160, 160, 240, 0, 2 * Math.PI);
-            ctx.fill();
-            
-            ctx.fillStyle = 'rgba(139, 92, 246, 0.1)';
-            ctx.beginPath();
-            ctx.arc(160, height - 160, 240, 0, 2 * Math.PI);
-            ctx.fill();
-            
-            // Header - Left side
-            ctx.fillStyle = '#5eead4';
-            ctx.font = 'bold 60px system-ui';
-            ctx.textAlign = 'left';
-            ctx.fillText('Performance', 48, 100);
-            ctx.fillText('Snapshot', 48, 170);
-            
-            ctx.fillStyle = '#9ca3af';
-            ctx.font = '32px system-ui';
-            ctx.fillText(shareData.period, 48, 210);
-            
-            // Right side header
-            ctx.fillStyle = '#e5e7eb';
-            ctx.font = 'bold 28px system-ui';
-            ctx.textAlign = 'right';
-            ctx.fillText('PRO TRADER', width - 48, 100);
-            ctx.fillText('JOURNAL', width - 48, 130);
-            
-            ctx.fillStyle = '#5eead4';
-            ctx.font = '20px system-ui';
-            ctx.fillText('www.xponential.me', width - 48, 160);
-            
-            // Main metrics grid
-            const metricsY = 250;
-            const cardWidth = 400;
-            const cardHeight = 140;
-            const gap = 40;
-            
-            // First row - P&L and Capital
-            if (shareData.mainMetrics) {
-                // P&L Card
-                const pnlX = 48;
-                const isPnlProfit = shareData.mainMetrics.pnlValue >= 0;
-                ctx.fillStyle = isPnlProfit ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
-                ctx.fillRect(pnlX, metricsY, cardWidth, cardHeight);
-                ctx.strokeStyle = isPnlProfit ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(pnlX, metricsY, cardWidth, cardHeight);
-                
-                // P&L Label
-                ctx.fillStyle = '#9ca3af';
-                ctx.font = '24px system-ui';
-                ctx.textAlign = 'left';
-                ctx.fillText(shareData.mainMetrics.pnlLabel, pnlX + 24, metricsY + 35);
-                
-                // P&L Value
-                ctx.fillStyle = isPnlProfit ? '#34d399' : '#ef4444';
-                ctx.font = 'bold 44px system-ui';
-                ctx.fillText(formatCurrencyCompact(shareData.mainMetrics.pnlValue), pnlX + 24, metricsY + 75);
-                
-                // ROI if available
-                if (shareData.mainMetrics.roiValue !== undefined) {
-                    ctx.fillStyle = isPnlProfit ? '#34d399' : '#ef4444';
-                    ctx.font = 'bold 24px system-ui';
-                    ctx.fillText(`${formatPercentage(shareData.mainMetrics.roiValue)} ROI`, pnlX + 24, metricsY + 105);
-                }
-                
-                // Capital Card
-                const capitalX = pnlX + cardWidth + gap;
-                ctx.fillStyle = 'rgba(34, 211, 238, 0.1)';
-                ctx.fillRect(capitalX, metricsY, cardWidth, cardHeight);
-                ctx.strokeStyle = 'rgba(34, 211, 238, 0.3)';
-                ctx.strokeRect(capitalX, metricsY, cardWidth, cardHeight);
-                
-                // Capital Label
-                ctx.fillStyle = '#9ca3af';
-                ctx.font = '24px system-ui';
-                ctx.fillText(shareData.mainMetrics.capitalLabel, capitalX + 24, metricsY + 35);
-                
-                // Capital Value
-                ctx.fillStyle = '#22d3ee';
-                ctx.font = 'bold 44px system-ui';
-                ctx.fillText(formatCurrencyCompact(shareData.mainMetrics.capitalValue), capitalX + 24, metricsY + 75);
-            }
-            
-            // Second row - Secondary metrics if available
-            if (shareData.secondaryMetrics) {
-                const secondaryY = metricsY + cardHeight + gap;
-                
-                // Secondary P&L Card
-                const secPnlX = 48;
-                const isSecPnlProfit = shareData.secondaryMetrics.pnlValue >= 0;
-                ctx.fillStyle = isSecPnlProfit ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
-                ctx.fillRect(secPnlX, secondaryY, cardWidth, cardHeight);
-                ctx.strokeStyle = isSecPnlProfit ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)';
-                ctx.strokeRect(secPnlX, secondaryY, cardWidth, cardHeight);
-                
-                // Secondary P&L Label
-                ctx.fillStyle = '#9ca3af';
-                ctx.font = '24px system-ui';
-                ctx.fillText(shareData.secondaryMetrics.pnlLabel, secPnlX + 24, secondaryY + 35);
-                
-                // Secondary P&L Value
-                ctx.fillStyle = isSecPnlProfit ? '#34d399' : '#ef4444';
-                ctx.font = 'bold 44px system-ui';
-                ctx.fillText(formatCurrencyCompact(shareData.secondaryMetrics.pnlValue), secPnlX + 24, secondaryY + 75);
-                
-                // Secondary ROI if available
-                if (shareData.secondaryMetrics.roiValue !== undefined) {
-                    ctx.fillStyle = isSecPnlProfit ? '#34d399' : '#ef4444';
-                    ctx.font = 'bold 24px system-ui';
-                    ctx.fillText(`${formatPercentage(shareData.secondaryMetrics.roiValue)} ROI`, secPnlX + 24, secondaryY + 105);
-                }
-                
-                // Secondary Capital Card
-                const secCapitalX = secPnlX + cardWidth + gap;
-                ctx.fillStyle = 'rgba(34, 211, 238, 0.1)';
-                ctx.fillRect(secCapitalX, secondaryY, cardWidth, cardHeight);
-                ctx.strokeStyle = 'rgba(34, 211, 238, 0.3)';
-                ctx.strokeRect(secCapitalX, secondaryY, cardWidth, cardHeight);
-                
-                // Secondary Capital Label
-                ctx.fillStyle = '#9ca3af';
-                ctx.font = '24px system-ui';
-                ctx.fillText(shareData.secondaryMetrics.capitalLabel, secCapitalX + 24, secondaryY + 35);
-                
-                // Secondary Capital Value
-                ctx.fillStyle = '#22d3ee';
-                ctx.font = 'bold 44px system-ui';
-                ctx.fillText(formatCurrencyCompact(shareData.secondaryMetrics.capitalValue), secCapitalX + 24, secondaryY + 75);
-            }
-            
-            // Daily breakdown if available
-            if (shareData.dailyBreakdown && shareData.dailyBreakdown.length > 0) {
-                const breakdownY = (shareData.secondaryMetrics ? metricsY + cardHeight * 2 + gap * 2 : metricsY + cardHeight + gap) + 60;
-                
-                // Section title
-                ctx.fillStyle = '#5eead4';
-                ctx.font = 'bold 32px system-ui';
-                ctx.textAlign = 'center';
-                ctx.fillText('Daily Breakdown', width / 2, breakdownY);
-                
-                // Daily entries
-                const entryHeight = 28;
-                const maxEntries = Math.min(6, shareData.dailyBreakdown.length);
-                const startX = 48;
-                const startY = breakdownY + 30;
-                
-                for (let i = 0; i < maxEntries; i++) {
-                    const day = shareData.dailyBreakdown[i];
-                    const entryY = startY + i * (entryHeight + 12);
-                    
-                    // Entry background
-                    ctx.fillStyle = 'rgba(31, 41, 55, 0.5)';
-                    ctx.fillRect(startX, entryY, width - 96, entryHeight);
-                    
-                    // Date
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = '20px system-ui';
-                    ctx.textAlign = 'left';
-                    ctx.fillText(new Date(day.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }), startX + 16, entryY + 20);
-                    
-                    // P&L value
-                    ctx.fillStyle = day.pnl >= 0 ? '#34d399' : '#ef4444';
-                    ctx.font = 'bold 20px monospace';
-                    ctx.textAlign = 'right';
-                    ctx.fillText(formatCurrencyCompact(day.pnl), width - 64, entryY + 20);
-                }
-            }
-            
-            // Footer
-            const footerY = height - 80;
-            ctx.fillStyle = '#6b7280';
-            ctx.font = '20px system-ui';
-            ctx.textAlign = 'center';
-            ctx.fillText('Track your journey to profitability. Generated by Pro Trader Journal.', width / 2, footerY);
-            
-            console.log('Custom canvas generated successfully');
-            
-            // Download the image
             const imageUrl = canvas.toDataURL('image/png');
             const link = document.createElement('a');
             link.href = imageUrl;
@@ -1470,17 +1260,10 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            
-            console.log('Image download initiated');
 
         } catch (error) {
             console.error("Error generating share image:", error);
-            console.error("Error details:", {
-                message: error.message,
-                stack: error.stack,
-                name: error.name
-            });
-            setModal({ isOpen: true, type: 'alert', message: 'Could not generate shareable image. Error: ' + error.message });
+            setModal({ isOpen: true, type: 'alert', message: 'Could not generate shareable image.' });
         } finally {
             setIsLoading(false);
             setShareData(null); // Close modal
@@ -2114,6 +1897,9 @@ const PaymentSuccessScreen = ({ details, setView }) => {
                     <p className="text-gray-400 text-sm mb-2">Your Secure Access Code is:</p>
                     <p className="text-3xl font-bold font-mono tracking-widest text-teal-300">{details.accessCode}</p>
                     <p className="text-xs text-amber-400 mt-3">Please save this code. You will need it to log in.</p>
+                    {details.paymentAttemptId && (
+                        <p className="text-xs text-gray-400 mt-4">Payment Reference: {details.paymentAttemptId}</p>
+                    )}
                 </div>
                 <button onClick={() => setView('login')} className="w-full p-4 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-all transform hover:scale-105">
                     Proceed to Login
@@ -2141,6 +1927,7 @@ const App = () => {
     const [isRenewalFlow, setIsRenewalFlow] = useState(false);
     const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
     const [isAuthLoading, setIsAuthLoading] = useState(false);
+    const [paymentAttemptId, setPaymentAttemptId] = useState(null); // FIX: State for payment ID
 
     // Function to change view and manage history for back button
     const navigateTo = (newView) => {
@@ -2173,7 +1960,6 @@ const App = () => {
             setDb(firestore);
             setAuth(authInstance);
 
-            // FIX: Check if the token has a valid JWT format before trying to use it.
             if (INITIAL_AUTH_TOKEN && INITIAL_AUTH_TOKEN.split('.').length === 3) {
                 signInWithCustomToken(authInstance, INITIAL_AUTH_TOKEN).catch(error => { 
                     console.error("Custom token sign-in error:", error); 
@@ -2213,7 +1999,7 @@ const App = () => {
                     setLoggedInCode(savedCode);
                     navigateTo('dashboard');
                 } else {
-                    setView('landing'); // Default to landing if not logged in
+                    setView('landing');
                 }
             } else {
                 setLoggedInCode(null);
@@ -2227,18 +2013,12 @@ const App = () => {
 
     // Data fetching and real-time updates from Firestore
     useEffect(() => {
-        // Handle static test user with an expired plan for demo purposes
         if (loggedInCode === '0000000000') {
             const sampleInitialCapital = 500000;
             const sampleJournal = { id: 'sample_journal_1', name: 'Test Strategy', initialCapital: sampleInitialCapital, createdAt: new Date().toISOString() };
             const sampleTrades = generateSampleTrades(125, sampleInitialCapital);
             const testUserData = {
-                userInfo: { 
-                    name: 'Test User (Expired)', 
-                    plan: 'expired', 
-                    expiryDate: new Date().getTime() - 1000,
-                    paymentHistory: []
-                },
+                userInfo: { name: 'Test User (Expired)', plan: 'expired', expiryDate: new Date().getTime() - 1000, paymentHistory: [] },
                 journals: [sampleJournal],
                 trades: { 'sample_journal_1': sampleTrades }
             };
@@ -2247,18 +2027,12 @@ const App = () => {
             return; 
         }
 
-        // Handle static test user with a working plan
         if (loggedInCode === '1111111111') {
             const sampleInitialCapital = 1000000;
             const sampleJournal = { id: 'sample_journal_2', name: 'Working Test Strategy', initialCapital: sampleInitialCapital, createdAt: new Date().toISOString() };
             const sampleTrades = generateSampleTrades(150, sampleInitialCapital);
             const testUserData = {
-                userInfo: { 
-                    name: 'Test User (Active)', 
-                    plan: 'yearly', 
-                    expiryDate: new Date().getTime() + 365 * 24 * 60 * 60 * 1000,
-                    paymentHistory: [{ paymentId: 'pay_sample', plan: 'yearly', amount: 49900, date: new Date().toISOString() }]
-                },
+                userInfo: { name: 'Test User (Active)', plan: 'yearly', expiryDate: new Date().getTime() + 365 * 24 * 60 * 60 * 1000, paymentHistory: [{ paymentId: 'pay_sample', plan: 'yearly', amount: 49900, date: new Date().toISOString() }] },
                 journals: [sampleJournal],
                 trades: { 'sample_journal_2': sampleTrades }
             };
@@ -2268,7 +2042,7 @@ const App = () => {
         }
 
         if (!db || !loggedInCode) {
-            if(!loggedInCode) setAllData(null); // Reset data on logout
+            if(!loggedInCode) setAllData(null);
             return;
         };
         
@@ -2343,7 +2117,7 @@ const App = () => {
         localStorage.removeItem(SESSION_KEY);
         setLoggedInCode(null);
         setIsRenewalFlow(false);
-        setIsAdminAuthenticated(false); // Logout from admin as well
+        setIsAdminAuthenticated(false);
         setView('landing');
         setViewHistory([]);
     };
@@ -2354,6 +2128,7 @@ const App = () => {
         setTimeout(() => setNotification({ show: false, message: '' }), 3000);
     };
 
+    // FIX: Overhauled payment function for reliability
     const handlePlanPayment = (planType, amountInPaise) => {
         if (!window.Razorpay) {
             setModal({isOpen: true, type: 'alert', message: 'Payment gateway is not ready. Please try again in a moment.'});
@@ -2361,6 +2136,8 @@ const App = () => {
         }
         
         setIsProcessingPayment(true);
+        const attemptId = `PTJ-${Date.now()}`;
+        setPaymentAttemptId(attemptId);
 
         const options = {
             key: RAZORPAY_KEY_ID,
@@ -2369,12 +2146,14 @@ const App = () => {
             name: "Pro Trader Journal",
             description: isRenewalFlow ? `Renew ${planType} Plan` : `Activate ${planType} Plan`,
             handler: async (response) => {
+                console.log("Razorpay success handler triggered:", response);
                 try {
                     const newPaymentRecord = {
                         paymentId: response.razorpay_payment_id,
                         plan: planType,
                         amount: amountInPaise,
-                        date: new Date().toISOString()
+                        date: new Date().toISOString(),
+                        attemptId: attemptId,
                     };
 
                     if (isRenewalFlow) {
@@ -2399,7 +2178,6 @@ const App = () => {
 
                         showSuccessNotification('Plan Renewed Successfully!');
                         setIsRenewalFlow(false);
-                        // FIX: Delay navigation to allow Razorpay modal to close gracefully, preventing issues on platforms like Vercel.
                         setTimeout(() => navigateTo('dashboard'), 100);
 
                     } else {
@@ -2421,8 +2199,7 @@ const App = () => {
                         };
                         const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, accessCode);
                         await setDoc(docRef, initialData);
-                        setPaymentSuccessDetails({ accessCode: accessCode });
-                        // FIX: Delay navigation to allow Razorpay modal to close gracefully.
+                        setPaymentSuccessDetails({ accessCode: accessCode, paymentAttemptId: attemptId });
                         setTimeout(() => navigateTo('paymentSuccess'), 100);
                     }
                 } catch(error) {
@@ -2430,25 +2207,30 @@ const App = () => {
                     setModal({ isOpen: true, type: 'alert', message: `Payment was successful, but we couldn't update your account. Please contact support with Payment ID: ${response.razorpay_payment_id}` });
                 } finally {
                     setIsProcessingPayment(false);
+                    setPaymentAttemptId(null);
                 }
             },
             prefill: {
-                name: registrationDetails?.name || '',
-                email: registrationDetails?.email || '',
-                contact: registrationDetails?.mobile || ''
+                name: registrationDetails?.name || allData?.userInfo?.name || '',
+                email: registrationDetails?.email || allData?.userInfo?.email || '',
+                contact: registrationDetails?.mobile || allData?.userInfo?.mobile || ''
             },
             notes: {
-                accessCode: isRenewalFlow ? loggedInCode : (registrationDetails ? registrationDetails.accessCode : 'N/A')
+                accessCode: isRenewalFlow ? loggedInCode : (registrationDetails ? registrationDetails.accessCode : 'N/A'),
+                payment_attempt_id: attemptId
             },
             theme: {
                 color: "#14b8a6"
             },
             modal: {
                 ondismiss: () => {
-                    // FIX: Removed conditional check. If ondismiss is called, the payment was not completed.
-                    // This prevents the UI from getting stuck in a "Processing..." state.
                     setIsProcessingPayment(false);
-                    setModal({isOpen: true, type: 'alert', message: 'Payment was cancelled.'});
+                    // FIX: Provide helpful guidance for UPI/QR payments instead of assuming cancellation.
+                    setModal({
+                        isOpen: true,
+                        type: 'alert',
+                        message: `Payment window closed.\n\nIf you completed your payment, it may take a minute to verify. Please try logging in shortly.\n\nIf you face any issues, contact support with this ID: ${attemptId}`
+                    });
                 }
             }
         };
@@ -2458,6 +2240,7 @@ const App = () => {
             rzp.on('payment.failed', function (response){
                 setModal({isOpen: true, type: 'alert', message: `Payment failed: ${response.error.description}`});
                 setIsProcessingPayment(false);
+                setPaymentAttemptId(null);
             });
             rzp.open();
         } catch (error) {
