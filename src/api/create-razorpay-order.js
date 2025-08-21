@@ -1,11 +1,17 @@
+// File: /api/create-razorpay-order.js
+
 const Razorpay = require('razorpay');
 
 export default async function handler(req, res) {
-    console.log('[API] Function invoked. Method:', req.method);
+    // IMPORTANT: Log the actual incoming method directly from the request
+    console.log('[API] Received request. Method:', req.method);
 
+    // Ensure the request method is POST. Vercel routes should send POST.
+    // If it's somehow coming through as something else, this will catch it.
     if (req.method !== 'POST') {
-        console.log('[API] Method Not Allowed. Returning 405.');
-        return res.status(405).json({ message: 'Method Not Allowed' });
+        console.error(`[API] Method not allowed: Expected POST, but got ${req.method}`);
+        // Return a clear JSON error
+        return res.status(405).json({ error: `Method Not Allowed. Expected POST, got ${req.method}.` });
     }
 
     // Attempt to parse body
@@ -65,11 +71,10 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error('[API] Caught unhandled error during Razorpay order creation:', error);
-        // Ensure error response is always JSON
         res.status(500).json({ 
             error: 'Could not create Razorpay order', 
             details: error.message,
-            stack: error.stack // Include stack trace for more details in Vercel logs
+            stack: error.stack 
         });
     }
 }
