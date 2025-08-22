@@ -2128,7 +2128,7 @@ const App = () => {
         setTimeout(() => setNotification({ show: false, message: '' }), 3000);
     };
 
-    // --- [NEW] PAYMENT LOGIC (SERVER-SIDE) ---
+    // --- [UPDATED] PAYMENT LOGIC ---
     const handlePlanPayment = async (planType, amountInPaise) => {
         if (!window.Razorpay) {
             setModal({ isOpen: true, type: 'alert', message: 'Payment gateway is not ready. Please try again.' });
@@ -2144,11 +2144,7 @@ const App = () => {
             const orderResponse = await fetch('/api/create-razorpay-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    amount: amountInPaise,
-                    currency: 'INR',
-                    receipt: attemptId
-                }),
+                body: JSON.stringify({ amount: amountInPaise }), // UPDATED: Simplified body as per request
             });
 
             if (!orderResponse.ok) {
