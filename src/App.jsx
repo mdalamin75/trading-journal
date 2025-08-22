@@ -17,20 +17,20 @@ const USER_TAGS = ['New User', 'Test User', 'Beta User', 'Good User', 'Demo User
 
 
 // --- USER-PROVIDED CREDENTIALS ---
-const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
-const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID;
-const INITIAL_AUTH_TOKEN = import.meta.env.VITE_INITIAL_AUTH_TOKEN;
+const ADMIN_PASSWORD = 'Pujan@123';
+const RAZORPAY_KEY_ID = 'rzp_live_pWNLoIsX4fvAzA';
+const APP_ID = 'pro-trader-journall';
+const INITIAL_AUTH_TOKEN = 'jfdkjfdjijfeayuioptwreqandfkdjfdhuahdfasytadfnvnaeqwoajenvbajytaadjioe';
 
 const firebaseConfig = {
-	apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-	authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-	projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-	storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-	messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-	appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    apiKey: "AIzaSyB9xvaaiOu72Q3CvVpQUOHds8xig54-ljw",
+    authDomain: "pro-trader-journall.firebaseapp.com",
+    projectId: "pro-trader-journall",
+    storageBucket: "pro-trader-journall.firebasestorage.app",
+    messagingSenderId: "711459341427",
+    appId: "1:711459341427:web:cf64e7052e9138bb76d606"
 };
-
-const appId = import.meta.env.VITE_APP_ID || "default-app-id";
+const appId = APP_ID;
 
 
 // --- HELPER FUNCTIONS ---
@@ -1241,226 +1241,18 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
     
     const handleShare = async () => {
         if (isPreview) { handlePreviewClick(); return; }
-        
-        // Check if the ref is available
-        if (!shareCardRef.current) {
-            setModal({ isOpen: true, type: 'alert', message: 'Share card element not found. Please try again.' });
+        if (!window.html2canvas) {
+            setModal({ isOpen: true, type: 'alert', message: 'Sharing library not loaded. Please try again in a moment.' });
             return;
         }
-        
         setIsLoading(true);
-        
+        // Delay to allow modal to render with new data
+        await new Promise(resolve => setTimeout(resolve, 100));
         try {
-            console.log('Starting custom canvas generation...');
-            console.log('Share data:', shareData);
-            console.log('Share data structure:', {
-                title: shareData?.title,
-                period: shareData?.period,
-                mainMetrics: shareData?.mainMetrics,
-                secondaryMetrics: shareData?.secondaryMetrics,
-                dailyBreakdown: shareData?.dailyBreakdown
+            const canvas = await window.html2canvas(shareCardRef.current, {
+                backgroundColor: null,
+                useCORS: true
             });
-            
-            // Validate share data
-            if (!shareData || !shareData.title || !shareData.period) {
-                throw new Error('Invalid share data. Please try again.');
-            }
-            
-            // Create canvas manually - this is more reliable than html2canvas
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            
-            // Set canvas dimensions (2x for high quality)
-            const width = 960; // 480px * 2
-            const height = 800; // Approximate height * 2
-            canvas.width = width;
-            canvas.height = height;
-            
-            // Fill background
-            ctx.fillStyle = '#1f2937';
-            ctx.fillRect(0, 0, width, height);
-            
-            // Add decorative background elements
-            ctx.fillStyle = 'rgba(20, 184, 166, 0.1)';
-            ctx.beginPath();
-            ctx.arc(width - 160, 160, 240, 0, 2 * Math.PI);
-            ctx.fill();
-            
-            ctx.fillStyle = 'rgba(139, 92, 246, 0.1)';
-            ctx.beginPath();
-            ctx.arc(160, height - 160, 240, 0, 2 * Math.PI);
-            ctx.fill();
-            
-            // Header - Left side
-            ctx.fillStyle = '#5eead4';
-            ctx.font = 'bold 60px system-ui';
-            ctx.textAlign = 'left';
-            ctx.fillText('Performance', 48, 100);
-            ctx.fillText('Snapshot', 48, 170);
-            
-            ctx.fillStyle = '#9ca3af';
-            ctx.font = '32px system-ui';
-            ctx.fillText(shareData.period, 48, 210);
-            
-            // Right side header
-            ctx.fillStyle = '#e5e7eb';
-            ctx.font = 'bold 28px system-ui';
-            ctx.textAlign = 'right';
-            ctx.fillText('PRO TRADER', width - 48, 100);
-            ctx.fillText('JOURNAL', width - 48, 130);
-            
-            ctx.fillStyle = '#5eead4';
-            ctx.font = '20px system-ui';
-            ctx.fillText('www.xponential.me', width - 48, 160);
-            
-            // Main metrics grid
-            const metricsY = 250;
-            const cardWidth = 400;
-            const cardHeight = 140;
-            const gap = 40;
-            
-            // First row - P&L and Capital
-            if (shareData.mainMetrics) {
-                // P&L Card
-                const pnlX = 48;
-                const isPnlProfit = shareData.mainMetrics.pnlValue >= 0;
-                ctx.fillStyle = isPnlProfit ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
-                ctx.fillRect(pnlX, metricsY, cardWidth, cardHeight);
-                ctx.strokeStyle = isPnlProfit ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(pnlX, metricsY, cardWidth, cardHeight);
-                
-                // P&L Label
-                ctx.fillStyle = '#9ca3af';
-                ctx.font = '24px system-ui';
-                ctx.textAlign = 'left';
-                ctx.fillText(shareData.mainMetrics.pnlLabel, pnlX + 24, metricsY + 35);
-                
-                // P&L Value
-                ctx.fillStyle = isPnlProfit ? '#34d399' : '#ef4444';
-                ctx.font = 'bold 44px system-ui';
-                ctx.fillText(formatCurrencyCompact(shareData.mainMetrics.pnlValue), pnlX + 24, metricsY + 75);
-                
-                // ROI if available
-                if (shareData.mainMetrics.roiValue !== undefined) {
-                    ctx.fillStyle = isPnlProfit ? '#34d399' : '#ef4444';
-                    ctx.font = 'bold 24px system-ui';
-                    ctx.fillText(`${formatPercentage(shareData.mainMetrics.roiValue)} ROI`, pnlX + 24, metricsY + 105);
-                }
-                
-                // Capital Card
-                const capitalX = pnlX + cardWidth + gap;
-                ctx.fillStyle = 'rgba(34, 211, 238, 0.1)';
-                ctx.fillRect(capitalX, metricsY, cardWidth, cardHeight);
-                ctx.strokeStyle = 'rgba(34, 211, 238, 0.3)';
-                ctx.strokeRect(capitalX, metricsY, cardWidth, cardHeight);
-                
-                // Capital Label
-                ctx.fillStyle = '#9ca3af';
-                ctx.font = '24px system-ui';
-                ctx.fillText(shareData.mainMetrics.capitalLabel, capitalX + 24, metricsY + 35);
-                
-                // Capital Value
-                ctx.fillStyle = '#22d3ee';
-                ctx.font = 'bold 44px system-ui';
-                ctx.fillText(formatCurrencyCompact(shareData.mainMetrics.capitalValue), capitalX + 24, metricsY + 75);
-            }
-            
-            // Second row - Secondary metrics if available
-            if (shareData.secondaryMetrics) {
-                const secondaryY = metricsY + cardHeight + gap;
-                
-                // Secondary P&L Card
-                const secPnlX = 48;
-                const isSecPnlProfit = shareData.secondaryMetrics.pnlValue >= 0;
-                ctx.fillStyle = isSecPnlProfit ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
-                ctx.fillRect(secPnlX, secondaryY, cardWidth, cardHeight);
-                ctx.strokeStyle = isSecPnlProfit ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)';
-                ctx.strokeRect(secPnlX, secondaryY, cardWidth, cardHeight);
-                
-                // Secondary P&L Label
-                ctx.fillStyle = '#9ca3af';
-                ctx.font = '24px system-ui';
-                ctx.fillText(shareData.secondaryMetrics.pnlLabel, secPnlX + 24, secondaryY + 35);
-                
-                // Secondary P&L Value
-                ctx.fillStyle = isSecPnlProfit ? '#34d399' : '#ef4444';
-                ctx.font = 'bold 44px system-ui';
-                ctx.fillText(formatCurrencyCompact(shareData.secondaryMetrics.pnlValue), secPnlX + 24, secondaryY + 75);
-                
-                // Secondary ROI if available
-                if (shareData.secondaryMetrics.roiValue !== undefined) {
-                    ctx.fillStyle = isSecPnlProfit ? '#34d399' : '#ef4444';
-                    ctx.font = 'bold 24px system-ui';
-                    ctx.fillText(`${formatPercentage(shareData.secondaryMetrics.roiValue)} ROI`, secPnlX + 24, secondaryY + 105);
-                }
-                
-                // Secondary Capital Card
-                const secCapitalX = secPnlX + cardWidth + gap;
-                ctx.fillStyle = 'rgba(34, 211, 238, 0.1)';
-                ctx.fillRect(secCapitalX, secondaryY, cardWidth, cardHeight);
-                ctx.strokeStyle = 'rgba(34, 211, 238, 0.3)';
-                ctx.strokeRect(secCapitalX, secondaryY, cardWidth, cardHeight);
-                
-                // Secondary Capital Label
-                ctx.fillStyle = '#9ca3af';
-                ctx.font = '24px system-ui';
-                ctx.fillText(shareData.secondaryMetrics.capitalLabel, secCapitalX + 24, secondaryY + 35);
-                
-                // Secondary Capital Value
-                ctx.fillStyle = '#22d3ee';
-                ctx.font = 'bold 44px system-ui';
-                ctx.fillText(formatCurrencyCompact(shareData.secondaryMetrics.capitalValue), secCapitalX + 24, secondaryY + 75);
-            }
-            
-            // Daily breakdown if available
-            if (shareData.dailyBreakdown && shareData.dailyBreakdown.length > 0) {
-                const breakdownY = (shareData.secondaryMetrics ? metricsY + cardHeight * 2 + gap * 2 : metricsY + cardHeight + gap) + 60;
-                
-                // Section title
-                ctx.fillStyle = '#5eead4';
-                ctx.font = 'bold 32px system-ui';
-                ctx.textAlign = 'center';
-                ctx.fillText('Daily Breakdown', width / 2, breakdownY);
-                
-                // Daily entries
-                const entryHeight = 28;
-                const maxEntries = Math.min(6, shareData.dailyBreakdown.length);
-                const startX = 48;
-                const startY = breakdownY + 30;
-                
-                for (let i = 0; i < maxEntries; i++) {
-                    const day = shareData.dailyBreakdown[i];
-                    const entryY = startY + i * (entryHeight + 12);
-                    
-                    // Entry background
-                    ctx.fillStyle = 'rgba(31, 41, 55, 0.5)';
-                    ctx.fillRect(startX, entryY, width - 96, entryHeight);
-                    
-                    // Date
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = '20px system-ui';
-                    ctx.textAlign = 'left';
-                    ctx.fillText(new Date(day.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }), startX + 16, entryY + 20);
-                    
-                    // P&L value
-                    ctx.fillStyle = day.pnl >= 0 ? '#34d399' : '#ef4444';
-                    ctx.font = 'bold 20px monospace';
-                    ctx.textAlign = 'right';
-                    ctx.fillText(formatCurrencyCompact(day.pnl), width - 64, entryY + 20);
-                }
-            }
-            
-            // Footer
-            const footerY = height - 80;
-            ctx.fillStyle = '#6b7280';
-            ctx.font = '20px system-ui';
-            ctx.textAlign = 'center';
-            ctx.fillText('Track your journey to profitability. Generated by Pro Trader Journal.', width / 2, footerY);
-            
-            console.log('Custom canvas generated successfully');
-            
-            // Download the image
             const imageUrl = canvas.toDataURL('image/png');
             const link = document.createElement('a');
             link.href = imageUrl;
@@ -1468,17 +1260,10 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            
-            console.log('Image download initiated');
 
         } catch (error) {
             console.error("Error generating share image:", error);
-            console.error("Error details:", {
-                message: error.message,
-                stack: error.stack,
-                name: error.name
-            });
-            setModal({ isOpen: true, type: 'alert', message: 'Could not generate shareable image. Error: ' + error.message });
+            setModal({ isOpen: true, type: 'alert', message: 'Could not generate shareable image.' });
         } finally {
             setIsLoading(false);
             setShareData(null); // Close modal
@@ -2343,54 +2128,119 @@ const App = () => {
         setTimeout(() => setNotification({ show: false, message: '' }), 3000);
     };
 
-    // --- PAYMENT LOGIC (SERVER-SIDE) ---
+    // --- [NEW] PAYMENT LOGIC (SERVER-SIDE) ---
     const handlePlanPayment = async (planType, amountInPaise) => {
-        // ... (rest of the function, no changes needed here unless specified)
-    
+        if (!window.Razorpay) {
+            setModal({ isOpen: true, type: 'alert', message: 'Payment gateway is not ready. Please try again.' });
+            return;
+        }
+        
         setIsProcessingPayment(true);
-    
+        const attemptId = `PTJ-receipt-${Date.now()}`;
+        setPaymentAttemptId(attemptId);
+
         try {
-            // Step 1: Create an order on the server
-            console.log('[Frontend] Sending request to create Razorpay order...');
+            // Step 1: Ask your server to create an order
             const orderResponse = await fetch('/api/create-razorpay-order', {
-                method: 'POST', // Explicitly ensure POST
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     amount: amountInPaise,
                     currency: 'INR',
-                    receipt: `receipt_order_${Date.now()}` // Unique receipt ID
+                    receipt: attemptId
                 }),
             });
-            console.log('[Frontend] Received response from order API. Status:', orderResponse.status);
-    
-            // DEFENSIVE PROGRAMMING: Read response as text first if not ok
-            let order;
+
             if (!orderResponse.ok) {
-                const errorText = await orderResponse.text();
-                console.error("[Frontend] Serverless function error response (text):", errorText);
-                try {
-                    const errorJson = JSON.parse(errorText); // Try parsing as JSON if it's there
-                    throw new Error(errorJson.error || errorJson.message || 'Failed to create payment order.');
-                } catch (jsonParseError) {
-                    // If it's not JSON, throw the raw text
-                    throw new Error(`Server responded with non-JSON error: ${errorText.substring(0, Math.min(errorText.length, 200))}... (Status: ${orderResponse.status})`);
-                }
-            } else {
-                // If response is OK, parse as JSON
-                order = await orderResponse.json();
-                console.log('[Frontend] Order received from API:', order);
+                const errorData = await orderResponse.json();
+                throw new Error(errorData.error || 'Failed to create payment order.');
             }
-    
-            // Step 2: Open Razorpay checkout with the order_id from the server
+
+            const order = await orderResponse.json();
+
+            // Step 2: Open Razorpay Checkout
             const options = {
                 key: RAZORPAY_KEY_ID,
                 amount: order.amount,
                 currency: order.currency,
                 name: "Pro Trader Journal",
                 description: isRenewalFlow ? `Renew ${planType} Plan` : `Activate ${planType} Plan`,
-                order_id: order.id, // Use the order_id from your server
+                order_id: order.id,
                 handler: async (response) => {
-                    // ... (rest of the handler, no changes needed)
+                    // Step 3: Verify the payment signature on your server
+                    const verifyRes = await fetch('/api/verify-razorpay-payment', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(response)
+                    });
+                    const verifyJson = await verifyRes.json();
+
+                    if (verifyJson?.ok) {
+                        // --- SERVER VERIFIED, NOW UPDATE DATABASE ---
+                         try {
+                            const newPaymentRecord = {
+                                paymentId: response.razorpay_payment_id,
+                                orderId: response.razorpay_order_id,
+                                signature: response.razorpay_signature,
+                                plan: planType,
+                                amount: amountInPaise,
+                                date: new Date().toISOString(),
+                                attemptId: attemptId,
+                            };
+
+                            if (isRenewalFlow) {
+                                const days = planType === 'monthly' ? 30 : 365;
+                                const newExpiryDate = new Date().getTime() + days * 24 * 60 * 60 * 1000;
+                                const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, loggedInCode);
+                                
+                                const docSnap = await getDoc(docRef);
+                                if (!docSnap.exists()) throw new Error('User not found for renewal.');
+                                
+                                const existingData = docSnap.data();
+                                const paymentHistory = existingData.userInfo.paymentHistory || [];
+                                
+                                await setDoc(docRef, { 
+                                    userInfo: { 
+                                        ...existingData.userInfo,
+                                        plan: planType,
+                                        expiryDate: newExpiryDate,
+                                        paymentHistory: [...paymentHistory, newPaymentRecord]
+                                    } 
+                                }, { merge: true });
+
+                                showSuccessNotification('Plan Renewed Successfully!');
+                                setIsRenewalFlow(false);
+                                setTimeout(() => navigateTo('dashboard'), 100);
+
+                            } else {
+                                const { name, email, mobile, accessCode, password } = registrationDetails;
+                                const days = planType === 'monthly' ? 30 : 365;
+                                const expiryDate = new Date().getTime() + days * 24 * 60 * 60 * 1000;
+                                const initialData = { 
+                                    userInfo: { 
+                                        name, email, mobile, password,
+                                        createdAt: new Date().toISOString(),
+                                        plan: planType,
+                                        expiryDate: expiryDate,
+                                        paymentHistory: [newPaymentRecord],
+                                        tag: 'New User',
+                                        notes: ''
+                                    }, 
+                                    journals: [], 
+                                    trades: {} 
+                                };
+                                const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, accessCode);
+                                await setDoc(docRef, initialData);
+                                setPaymentSuccessDetails({ accessCode: accessCode, paymentAttemptId: attemptId });
+                                setTimeout(() => navigateTo('paymentSuccess'), 100);
+                            }
+                        } catch(error) {
+                            console.error("DATABASE UPDATE ERROR:", error);
+                            setModal({ isOpen: true, type: 'alert', message: `Payment was verified, but we couldn't update your account. Please contact support with Payment ID: ${response.razorpay_payment_id}` });
+                        }
+                    } else {
+                        setModal({ isOpen: true, type: 'alert', message: 'Payment verification failed. Please contact support if the amount was debited.' });
+                    }
                 },
                 prefill: {
                     name: registrationDetails?.name || allData?.userInfo?.name || '',
@@ -2398,34 +2248,34 @@ const App = () => {
                     contact: registrationDetails?.mobile || allData?.userInfo?.mobile || ''
                 },
                 notes: {
-                    accessCode: isRenewalFlow ? loggedInCode : (registrationDetails ? registrationDetails.accessCode : 'N/A')
+                    accessCode: isRenewalFlow ? loggedInCode : (registrationDetails ? registrationDetails.accessCode : 'N/A'),
+                    payment_attempt_id: attemptId
                 },
                 theme: {
                     color: "#14b8a6"
                 },
                 modal: {
                     ondismiss: () => {
-                        setIsProcessingPayment(false); 
-                        setModal({isOpen: true, type: 'alert', message: 'Payment was cancelled.'});
+                        setModal({ isOpen: true, type: 'alert', message: `Payment window closed. Your transaction may not have been completed.` });
                     }
                 }
             };
-    
+
             const rzp = new window.Razorpay(options);
             rzp.on('payment.failed', function (response){
                 console.error("Razorpay payment failed:", response.error);
                 setModal({isOpen: true, type: 'alert', message: `Payment failed: ${response.error.description}. Please try another payment method.`});
-                setIsProcessingPayment(false); 
             });
             rzp.open();
-    
+
         } catch (error) {
             console.error("Error during payment process:", error);
             setModal({isOpen: true, type: 'alert', message: `Could not initiate payment: ${error.message}`});
+        } finally {
             setIsProcessingPayment(false);
+            setPaymentAttemptId(null);
         }
     };
-    
 
 
     const handleStartRenewal = () => {
