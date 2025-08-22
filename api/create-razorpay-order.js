@@ -2,7 +2,8 @@
 
 const Razorpay = require('razorpay');
 
-export default async function handler(req, res) {
+// --- FIX: Use module.exports for consistency with the 'require' statement ---
+module.exports = async (req, res) => {
     // IMPORTANT: Log the actual incoming method directly from the request
     console.log('[API] Received request. Method:', req.method);
 
@@ -32,7 +33,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Amount is required' });
     }
 
-    // --- FIX: Use server-side environment variables (without VITE_ prefix) ---
+    // Use server-side environment variables (without VITE_ prefix)
     // These must be set in your Vercel project settings.
     const keyId = process.env.RAZORPAY_KEY_ID;
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
@@ -76,4 +77,4 @@ export default async function handler(req, res) {
             details: error.message,
         });
     }
-}
+};
