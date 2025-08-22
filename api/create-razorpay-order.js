@@ -6,22 +6,21 @@ export default async function handler(req, res) {
     // IMPORTANT: Log the actual incoming method directly from the request
     console.log('[API] Received request. Method:', req.method);
 
-    // Ensure the request method is POST. Vercel routes should send POST.
-    // If it's somehow coming through as something else, this will catch it.
+    // Ensure the request method is POST.
     if (req.method !== 'POST') {
         console.error(`[API] Method not allowed: Expected POST, but got ${req.method}`);
-        // Return a clear JSON error
         return res.status(405).json({ error: `Method Not Allowed. Expected POST, got ${req.method}.` });
     }
 
-    // Attempt to parse body
     let amount;
     try {
         if (!req.body) {
             console.error('[API] Request body is empty.');
             return res.status(400).json({ error: 'Request body is empty.' });
         }
-        amount = req.body.amount;
+        // Vercel might not auto-parse the body, so we handle both cases
+        const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+        amount = body.amount;
         console.log('[API] Received amount:', amount);
     } catch (parseError) {
         console.error('[API] Error parsing request body:', parseError);
@@ -33,12 +32,13 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Amount is required' });
     }
 
-    const keyId = process.env.VITE_RAZORPAY_KEY_ID;
-    const keySecret = process.env.VITE_RAZORPAY_KEY_SECRET;
+    // --- FIX: Use server-side environment variables (without VITE_ prefix) ---
+    // These must be set in your Vercel project settings.
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
     console.log('[API] Razorpay Key ID (first 5 chars):', keyId ? keyId.substring(0, 5) : 'Not set');
-    console.log('[API] Razorpay Key Secret (first 5 chars):', keySecret ? keySecret.substring(0, 5) : 'Not set');
-
+    
     if (!keyId || !keySecret) {
         console.error('[API] Razorpay API keys are not properly set in environment variables. Check Vercel project settings.');
         return res.status(500).json({ error: 'Razorpay API keys are not configured on the server.' });
@@ -74,7 +74,6 @@ export default async function handler(req, res) {
         res.status(500).json({ 
             error: 'Could not create Razorpay order', 
             details: error.message,
-            stack: error.stack 
         });
     }
 }
