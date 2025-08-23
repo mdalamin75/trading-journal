@@ -13,14 +13,15 @@ const TRADES_PER_PAGE = 20;
 const SESSION_KEY = 'proTraderAccessCode';
 const DB_COLLECTION_NAME = 'pro_trader_journals';
 const COUPONS_COLLECTION_NAME = 'coupons';
-const USER_TAGS = ['New User', 'Test User', 'Beta User', 'Good User', 'Demo User'];
+const USER_TAGS = ['New User', 'Test User', 'Beta User', 'Good User', 'Demo User', 'Payment Verified'];
 
 
 // --- USER-PROVIDED CREDENTIALS ---
 const ADMIN_PASSWORD = 'Pujan@123';
-const RAZORPAY_KEY_ID = 'rzp_live_pWNLoIsX4fvAzA';
+const RAZORPAY_KEY_ID = 'rzp_live_pWNLoIsX4fvAzA'; // Note: This is not used in the new flow, but kept for reference.
 const APP_ID = 'pro-trader-journall';
 const INITIAL_AUTH_TOKEN = 'jfdkjfdjijfeayuioptwreqandfkdjfdhuahdfasytadfnvnaeqwoajenvbajytaadjioe';
+const RAZORPAY_SUBSCRIPTION_BUTTON_ID = "pl_R8j2a0ZalgSdo0";
 
 const firebaseConfig = {
     apiKey: "AIzaSyB9xvaaiOu72Q3CvVpQUOHds8xig54-ljw",
@@ -427,14 +428,14 @@ const LoginScreen = ({ onLogin, setModal, setView, db }) => {
     );
 };
 
+// --- Registration Step 1: User Details ---
 const UserDetailsScreen = ({ setView, setRegistrationDetails, goBack }) => {
     const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
     const [mobile, setMobile] = useState('');
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        setRegistrationDetails(prev => ({ ...prev, name, email, mobile }));
+        setRegistrationDetails({ name, mobile });
         setView('register');
     };
 
@@ -443,23 +444,17 @@ const UserDetailsScreen = ({ setView, setRegistrationDetails, goBack }) => {
             <BackButton onClick={goBack} />
             <div className="w-full max-w-md">
                 <header className="text-center mb-8">
-                    <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-500 tracking-wide">Let's Get Started</h1>
-                    <p className="text-gray-400 mt-2">Tell us a bit about yourself.</p>
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-500 tracking-wide">Your Details</h1>
+                    <p className="text-gray-400 mt-2">Let's get to know you.</p>
                 </header>
                 <div className="bg-gray-900 border border-teal-800/50 rounded-2xl shadow-2xl p-8">
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <input type="text" placeholder="Full Name" value={name} onChange={e => setName(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required />
-                        <input type="email" placeholder="Email Address" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required />
-                        <input type="tel" placeholder="Mobile Number" value={mobile} onChange={e => setMobile(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required />
+                        <input type="text" placeholder="Full Name" value={name} onChange={e => setName(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500" required />
+                        <input type="tel" placeholder="Mobile Number" value={mobile} onChange={e => setMobile(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500" pattern="[6-9][0-9]{9}" title="Please enter a valid 10-digit Indian mobile number." required />
                         <button type="submit" className="w-full p-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-all transform hover:scale-105">
                             Next: Secure Your Account
                         </button>
                     </form>
-                    <p className="text-center text-gray-500 mt-4 text-sm">
-                        <button onClick={() => setView('landing')} className="hover:text-gray-300 transition-colors">
-                            &larr; Back to Home
-                        </button>
-                    </p>
                 </div>
             </div>
         </div>
@@ -467,49 +462,86 @@ const UserDetailsScreen = ({ setView, setRegistrationDetails, goBack }) => {
 };
 
 
-const RegisterScreen = ({ setView, setRegistrationDetails, db, setModal, goBack }) => {
-    const [accessCode, setAccessCode] = useState('');
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
+// --- Registration Step 2: Account Credentials ---
+const RegisterScreen = ({ setView, registrationDetails, db, setModal, goBack }) => {
+    const [formData, setFormData] = useState({ accessCode: '', password: '', confirmPassword: '' });
     const [isLoading, setIsLoading] = useState(false);
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
+        // FIX: Add guard clause to prevent crash if registrationDetails is null
+        if (!registrationDetails) {
+            goBack(); // Send user back to the previous step
+            return;
+        }
+
+        const { accessCode, password, confirmPassword } = formData;
+        const { name, mobile } = registrationDetails;
+
         if (password !== confirmPassword) {
             setModal({ isOpen: true, type: 'alert', message: 'Passwords do not match.' });
+            return;
+        }
+        if (!/^\d{5,10}$/.test(accessCode.trim())) {
+            setModal({ isOpen: true, type: 'alert', message: 'Access Code must be 5 to 10 digits.' });
             return;
         }
 
         setIsLoading(true);
 
         if (!db) {
-            setModal({ isOpen: true, type: 'alert', message: 'Database connection not available. Please contact support.' });
+            setModal({ isOpen: true, type: 'alert', message: 'Database connection error.' });
             setIsLoading(false);
             return;
         }
 
         const trimmedCode = accessCode.trim();
-
-        if (!/^\d{5,10}$/.test(trimmedCode)) {
-            setModal({ isOpen: true, type: 'alert', message: 'Access Code must be 5 to 10 digits.' });
-            setIsLoading(false);
-            return;
-        }
+        const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, trimmedCode);
 
         try {
-            const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, trimmedCode);
             const docSnap = await getDoc(docRef);
-
             if (docSnap.exists()) {
                 setModal({ isOpen: true, type: 'alert', message: 'This access code is already taken. Please choose another one.' });
-            } else {
-                setRegistrationDetails(prev => ({ ...prev, accessCode: trimmedCode, password: password }));
-                setView('plans');
+                setIsLoading(false);
+                return;
             }
+
+            const initialData = {
+                userInfo: {
+                    name, mobile, password,
+                    createdAt: new Date().toISOString(),
+                    plan: 'none',
+                    expiryDate: 1,
+                    isVerified: false,
+                    paymentHistory: [],
+                    tag: 'New User',
+                    notes: 'Awaiting payment and verification.'
+                },
+                journals: [],
+                trades: {}
+            };
+            await setDoc(docRef, initialData);
+
+            setModal({
+                isOpen: true,
+                type: 'success', // Use the new success modal type
+                title: "Account Created!",
+                message: 'Please proceed to select and pay for a plan. Your account will be activated by an admin after payment verification.',
+                onConfirm: () => {
+                    setView('plans');
+                    setModal({ isOpen: false });
+                }
+            });
+
         } catch (error) {
-            console.error("Error checking access code:", error);
-            setModal({ isOpen: true, type: 'alert', message: 'An error occurred. Please try again.' });
+            console.error("Error creating account:", error);
+            setModal({ isOpen: true, type: 'alert', message: 'An error occurred during registration. Please try again.' });
         } finally {
             setIsLoading(false);
         }
@@ -519,41 +551,83 @@ const RegisterScreen = ({ setView, setRegistrationDetails, db, setModal, goBack 
         <div className="min-h-screen bg-gray-950 flex flex-col justify-center items-center p-4 text-gray-100 font-sans relative">
             <BackButton onClick={goBack} />
             <div className="w-full max-w-md">
-                 <header className="text-center mb-8">
-                    <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-500 tracking-wide">Secure Your Account</h1>
-                    <p className="text-gray-400 mt-2">Create a PIN and password for your journal.</p>
+                <header className="text-center mb-8">
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-cyan-500 tracking-wide">Account Security</h1>
+                    <p className="text-gray-400 mt-2">Create your login credentials.</p>
                 </header>
                 <div className="bg-gray-900 border border-teal-800/50 rounded-2xl shadow-2xl p-8">
+                     <div className="mb-4 p-3 bg-teal-900/40 border border-teal-500/30 rounded-lg text-center flex items-center gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-teal-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <p className="text-teal-200 text-sm font-semibold text-left">
+                            Please remember your Access Code and Password. You will need them to log in.
+                        </p>
+                    </div>
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <input type="tel" pattern="\d{5,10}" title="Access Code must be 5 to 10 digits." placeholder="Create a Secure 5-10 Digit PIN" value={accessCode} onChange={e => setAccessCode(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required />
-                        <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required />
-                        <input type="password" placeholder="Confirm Password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" required />
+                        <input type="tel" name="accessCode" pattern="\d{5,10}" title="Access Code must be 5 to 10 digits." placeholder="Create a 5-10 Digit PIN" value={formData.accessCode} onChange={handleInputChange} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500" required />
+                        <input type="password" name="password" placeholder="Create Password" value={formData.password} onChange={handleInputChange} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500" required />
+                        <input type="password" name="confirmPassword" placeholder="Confirm Password" value={formData.confirmPassword} onChange={handleInputChange} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500" required />
                         <button type="submit" disabled={isLoading} className="w-full p-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-all transform hover:scale-105 disabled:bg-gray-500 disabled:scale-100">
-                            {isLoading ? <span className="animate-pulse">Checking...</span> : 'Proceed to Plans'}
+                            {isLoading ? <span className="animate-pulse">Creating Account...</span> : 'Register & Proceed to Plans'}
                         </button>
                     </form>
-                     <p className="text-center text-gray-400 mt-6">
-                        Already have an account?{' '}
-                        <button onClick={() => setView('login')} className="font-semibold text-teal-400 hover:text-teal-300 transition-colors">
-                            Login
-                        </button>
-                    </p>
-                    <p className="text-center text-gray-500 mt-4 text-sm">
-                        <button onClick={() => setView('landing')} className="hover:text-gray-300 transition-colors">
-                            &larr; Back to Home
-                        </button>
-                    </p>
                 </div>
             </div>
         </div>
     );
 };
 
-const PlansScreen = ({ onPlanSelect, setModal, goBack, db, isProcessingPayment }) => {
+
+// --- New Component for Subscription Modal ---
+const SubscriptionModal = ({ onClose, registrationDetails }) => {
+    useEffect(() => {
+        const rzpForm = document.getElementById('razorpay-form');
+        if (rzpForm) {
+            // Clear previous script if any
+            rzpForm.innerHTML = '';
+            
+            const script = document.createElement('script');
+            script.src = "https://cdn.razorpay.com/static/widget/subscription-button.js";
+            script.setAttribute('data-subscription_button_id', RAZORPAY_SUBSCRIPTION_BUTTON_ID);
+            script.setAttribute('data-button_theme', 'rzp-dark-standard');
+            script.async = true;
+            
+            rzpForm.appendChild(script);
+        }
+    }, []);
+
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-50 p-4" onClick={onClose}>
+            <div className="bg-gray-800 border border-teal-700 rounded-xl p-8 w-full max-w-lg text-center shadow-2xl" onClick={e => e.stopPropagation()}>
+                <h2 className="text-2xl font-bold text-teal-300 mb-4">Complete Your Subscription</h2>
+                <p className="text-gray-300 mb-6">Click the button below to proceed with the payment. You can choose your plan on the payment page.</p>
+                
+                <div className="my-6 flex justify-center">
+                    <form id="razorpay-form"></form>
+                </div>
+
+                <div className="mt-8 p-4 bg-gray-900/70 border border-dashed border-teal-500/50 rounded-lg">
+                    <h3 className="font-bold text-teal-300">IMPORTANT: After Payment</h3>
+                    <p className="text-gray-300 mt-2 text-sm">
+                       After payment, your account will be reviewed and activated by an administrator, usually within 24 hours. You can then log in with the access code and password you created.
+                    </p>
+                </div>
+
+                <button onClick={onClose} className="mt-8 px-6 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-gray-700">Close</button>
+            </div>
+        </div>
+    );
+};
+
+
+const PlansScreen = ({ registrationDetails, setModal, goBack, db }) => {
     const [showPreview, setShowPreview] = useState(false);
     const [couponCode, setCouponCode] = useState('');
     const [appliedCoupon, setAppliedCoupon] = useState(null);
-    const [discountedPrices, setDiscountedPrices] = useState({ monthly: 9900, yearly: 49900 });
+    const [discountedPrices, setDiscountedPrices] = useState({ monthly: 99, yearly: 499 });
+    const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+
 
     const handleApplyCoupon = async () => {
         if (!couponCode.trim()) {
@@ -569,8 +643,8 @@ const PlansScreen = ({ onPlanSelect, setModal, goBack, db, isProcessingPayment }
                     setAppliedCoupon(couponData);
                     const discount = couponData.discountPercentage / 100;
                     setDiscountedPrices({
-                        monthly: Math.round(9900 * (1 - discount)),
-                        yearly: Math.round(49900 * (1 - discount)),
+                        monthly: Math.round(99 * (1 - discount)),
+                        yearly: Math.round(499 * (1 - discount)),
                     });
                     setModal({ isOpen: true, type: 'alert', message: `Coupon applied! ${couponData.discountPercentage}% off.` });
                 } else {
@@ -635,12 +709,7 @@ const PlansScreen = ({ onPlanSelect, setModal, goBack, db, isProcessingPayment }
 
     return (
         <div className="min-h-screen bg-gray-950 text-gray-100 font-sans p-4 sm:p-6 lg:p-8 overflow-x-hidden relative">
-            {isProcessingPayment && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex flex-col justify-center items-center z-50">
-                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-teal-400"></div>
-                    <p className="text-white text-xl mt-4">Processing Payment...</p>
-                </div>
-            )}
+            {showSubscriptionModal && <SubscriptionModal onClose={() => setShowSubscriptionModal(false)} registrationDetails={registrationDetails} />}
             <BackButton onClick={goBack} />
             <style>{`
                 .bg-grid {
@@ -683,12 +752,12 @@ const PlansScreen = ({ onPlanSelect, setModal, goBack, db, isProcessingPayment }
                             <h3 className="text-2xl font-bold text-gray-300">Pro Monthly</h3>
                             <p className="mt-2 text-gray-400">Flexible monthly access</p>
                             <div className="my-8">
-                                <p className="text-5xl font-extrabold text-white">₹{discountedPrices.monthly / 100} <span className="text-xl font-medium text-gray-400">/ month</span></p>
+                                <p className="text-5xl font-extrabold text-white">₹{discountedPrices.monthly} <span className="text-xl font-medium text-gray-400">/ month</span></p>
                                 {appliedCoupon ? <p className="text-lg text-gray-500 line-through">₹99</p> : <p className="text-lg text-gray-500 line-through">₹300</p>}
                             </div>
                         </div>
-                        <button disabled={isProcessingPayment} onClick={() => onPlanSelect('monthly', discountedPrices.monthly)} className="w-full p-4 bg-gray-700 text-white font-bold rounded-xl hover:bg-gray-600 transition-all duration-300 text-lg shadow-lg mt-4 disabled:bg-gray-500 disabled:cursor-not-allowed">
-                            {isProcessingPayment ? 'Processing...' : 'Get Started'}
+                        <button onClick={() => setShowSubscriptionModal(true)} className="w-full p-4 bg-gray-700 text-white font-bold rounded-xl hover:bg-gray-600 transition-all duration-300 text-lg shadow-lg mt-4">
+                            Get Started
                         </button>
                     </div>
 
@@ -700,13 +769,13 @@ const PlansScreen = ({ onPlanSelect, setModal, goBack, db, isProcessingPayment }
                             <h3 className="text-2xl font-bold text-white">Pro Yearly</h3>
                             <p className="mt-2 text-teal-300">Save over 85%</p>
                             <div className="my-4">
-                                <p className="text-5xl font-extrabold text-white">₹{discountedPrices.yearly / 100} <span className="text-xl font-medium text-gray-400">/ year</span></p>
+                                <p className="text-5xl font-extrabold text-white">₹{discountedPrices.yearly} <span className="text-xl font-medium text-gray-400">/ year</span></p>
                                 {appliedCoupon ? <p className="text-lg text-gray-500 line-through">₹499</p> : <p className="text-lg text-gray-500 line-through">₹3599</p>}
                             </div>
-                            <p className="text-lg text-gray-400 -mt-2 mb-4">(Just ₹{(discountedPrices.yearly / 12 / 100).toFixed(2)}/mo)</p>
+                            <p className="text-lg text-gray-400 -mt-2 mb-4">(Just ₹{(discountedPrices.yearly / 12).toFixed(2)}/mo)</p>
                         </div>
-                        <button disabled={isProcessingPayment} onClick={() => onPlanSelect('yearly', discountedPrices.yearly)} className="w-full p-4 bg-gradient-to-r from-teal-400 to-cyan-500 text-white font-bold rounded-xl hover:opacity-90 transition-opacity duration-300 text-lg shadow-lg shadow-teal-500/30 mt-4 disabled:opacity-50 disabled:cursor-not-allowed">
-                             {isProcessingPayment ? 'Processing...' : 'Go Pro Yearly'}
+                        <button onClick={() => setShowSubscriptionModal(true)} className="w-full p-4 bg-gradient-to-r from-teal-400 to-cyan-500 text-white font-bold rounded-xl hover:opacity-90 transition-opacity duration-300 text-lg shadow-lg shadow-teal-500/30 mt-4">
+                             Go Pro Yearly
                         </button>
                     </div>
                 </div>
@@ -1034,7 +1103,7 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
     
     // --- Subscription Check ---
     useEffect(() => {
-        if (userInfo && userInfo.expiryDate && !isPreview) {
+        if (userInfo?.expiryDate && !isPreview) {
             if (new Date().getTime() > userInfo.expiryDate) {
                 setIsExpired(true);
             }
@@ -1616,197 +1685,213 @@ const AdminLogin = ({ onAdminLogin, isLoading, setView, setModal }) => {
 };
 
 
-// --- ADMIN PANEL COMPONENT (UPDATED) ---
+// --- ADMIN PANEL COMPONENT (UPDATED FOR NEW FLOW) ---
 const AdminPanel = ({ db, setView, setModal }) => {
     const [coupons, setCoupons] = useState([]);
     const [users, setUsers] = useState([]);
     const [newCoupon, setNewCoupon] = useState({ code: '', discountPercentage: 10, isActive: true });
     const [isLoadingCoupons, setIsLoadingCoupons] = useState(true);
     const [isLoadingUsers, setIsLoadingUsers] = useState(true);
-    const [userNotes, setUserNotes] = useState({});
+    const [userEdits, setUserEdits] = useState({});
+    
+    const sortedUsers = useMemo(() => {
+        if (!users) return [];
+        return [...users].sort((a, b) => {
+            // Unverified users come first
+            if (a.userInfo?.isVerified !== b.userInfo?.isVerified) {
+                return a.userInfo?.isVerified ? 1 : -1;
+            }
+            // Then sort by creation date, newest first
+            return new Date(b.userInfo?.createdAt || 0) - new Date(a.userInfo?.createdAt || 0);
+        });
+    }, [users]);
+
 
     // Fetch coupons and users on component mount
     useEffect(() => {
         if (!db) return;
 
-        // Fetch Coupons
         const couponsRef = collection(db, 'artifacts', appId, 'public', 'data', COUPONS_COLLECTION_NAME);
-        const unsubCoupons = onSnapshot(couponsRef, (querySnapshot) => {
-            const couponsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setCoupons(couponsData);
+        const unsubCoupons = onSnapshot(couponsRef, (snap) => {
+            setCoupons(snap.docs.map(d => ({ id: d.id, ...d.data() })));
             setIsLoadingCoupons(false);
         }, (error) => {
             console.error("Error fetching coupons:", error);
             setIsLoadingCoupons(false);
-            setModal({ isOpen: true, type: 'alert', message: 'Could not fetch coupon data.' });
         });
 
-        // Fetch Users
         const usersRef = collection(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME);
-        const unsubUsers = onSnapshot(usersRef, (querySnapshot) => {
-            const usersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setUsers(usersData);
-            // Initialize local notes state from fetched user data
-            const initialNotes = {};
-            usersData.forEach(user => {
-                initialNotes[user.id] = user.userInfo?.notes || '';
-            });
-            setUserNotes(initialNotes);
+        const unsubUsers = onSnapshot(usersRef, (snap) => {
+            setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
             setIsLoadingUsers(false);
         }, (error) => {
             console.error("Error fetching users:", error);
             setIsLoadingUsers(false);
-            setModal({ isOpen: true, type: 'alert', message: 'Could not fetch user data.' });
         });
 
-        return () => {
-            unsubCoupons();
-            unsubUsers();
-        };
-    }, [db, setModal]);
+        return () => { unsubCoupons(); unsubUsers(); };
+    }, [db]);
 
-    const handleInputChange = (e) => {
+    const handleCouponInputChange = (e) => {
         const { name, value, type, checked } = e.target;
         setNewCoupon(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     };
 
     const handleAddCoupon = async (e) => {
         e.preventDefault();
-        if (!db || !newCoupon.code || !newCoupon.discountPercentage) {
-            setModal({ isOpen: true, type: 'alert', message: 'Please fill all fields.' });
-            return;
-        }
         const couponId = newCoupon.code.trim().toUpperCase();
+        if (!db || !couponId || !newCoupon.discountPercentage) return;
         const couponRef = doc(db, 'artifacts', appId, 'public', 'data', COUPONS_COLLECTION_NAME, couponId);
-        
-        try {
-            await setDoc(couponRef, {
-                discountPercentage: Number(newCoupon.discountPercentage),
-                isActive: newCoupon.isActive,
-                createdAt: new Date().toISOString()
-            });
-            setNewCoupon({ code: '', discountPercentage: 10, isActive: true });
-        } catch (error) {
-            console.error("Error adding coupon:", error);
-            setModal({ isOpen: true, type: 'alert', message: 'Failed to add coupon.' });
-        }
+        await setDoc(couponRef, {
+            discountPercentage: Number(newCoupon.discountPercentage),
+            isActive: newCoupon.isActive,
+            createdAt: new Date().toISOString()
+        });
+        setNewCoupon({ code: '', discountPercentage: 10, isActive: true });
     };
 
     const toggleCouponStatus = async (coupon) => {
         if (!db) return;
         const couponRef = doc(db, 'artifacts', appId, 'public', 'data', COUPONS_COLLECTION_NAME, coupon.id);
-        try {
-            await updateDoc(couponRef, { isActive: !coupon.isActive });
-        } catch (error) {
-            console.error("Error updating coupon status:", error);
-            setModal({ isOpen: true, type: 'alert', message: 'Failed to update coupon status.' });
-        }
+        await updateDoc(couponRef, { isActive: !coupon.isActive });
     };
 
     const handleDeleteCoupon = (couponId) => {
-        if (!db) return;
         setModal({
-            isOpen: true,
-            type: 'confirm',
-            message: `Are you sure you want to delete coupon ${couponId}?`,
+            isOpen: true, type: 'confirm', message: `Delete coupon ${couponId}?`,
             onConfirm: async () => {
                 const couponRef = doc(db, 'artifacts', appId, 'public', 'data', COUPONS_COLLECTION_NAME, couponId);
-                try {
-                    await deleteDoc(couponRef);
-                    setModal({ isOpen: false });
-                } catch (error) {
-                    console.error("Error deleting coupon:", error);
-                    setModal({ isOpen: true, type: 'alert', message: 'Could not delete coupon.' });
-                }
+                await deleteDoc(couponRef);
+                setModal({ isOpen: false });
             }
         });
     };
 
-    const handleUserTagChange = async (userId, newTag) => {
+    const handleUserEditChange = (userId, field, value) => {
+        setUserEdits(prev => ({
+            ...prev,
+            [userId]: { ...prev[userId], [field]: value }
+        }));
+    };
+
+    const handleVerifyUser = async (userId) => {
         const userRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, userId);
+        const edits = userEdits[userId] || {};
+        const plan = edits.plan || 'monthly'; // Default to monthly if not set
+        const days = plan === 'yearly' ? 365 : 30;
+        const expiryDate = new Date();
+        expiryDate.setDate(expiryDate.getDate() + days);
+
         try {
-            await updateDoc(userRef, { "userInfo.tag": newTag });
+            await updateDoc(userRef, {
+                'userInfo.isVerified': true,
+                'userInfo.plan': plan,
+                'userInfo.expiryDate': expiryDate.getTime(),
+                'userInfo.notes': 'Account verified by admin.'
+            });
+            setModal({ isOpen: true, type: 'alert', message: 'User verified and activated!' });
         } catch (error) {
-            console.error("Error updating user tag:", error);
-            setModal({ isOpen: true, type: 'alert', message: 'Failed to update user tag.' });
+            console.error("Error verifying user:", error);
+            setModal({ isOpen: true, type: 'alert', message: 'Failed to verify user.' });
         }
     };
 
-    const handleUserNotesChange = (userId, notes) => {
-        setUserNotes(prev => ({ ...prev, [userId]: notes }));
-    };
+    const handleSaveUserChanges = async (userId) => {
+        const edits = userEdits[userId];
+        if (!edits) return;
 
-    const saveUserNotes = async (userId) => {
         const userRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, userId);
+        const updates = {};
+        if (edits.plan) updates['userInfo.plan'] = edits.plan;
+        if (edits.tag) updates['userInfo.tag'] = edits.tag;
+        if (edits.notes) updates['userInfo.notes'] = edits.notes;
+        if (edits.expiryDate) updates['userInfo.expiryDate'] = new Date(edits.expiryDate).getTime();
+
         try {
-            await updateDoc(userRef, { "userInfo.notes": userNotes[userId] || '' });
-            setModal({ isOpen: true, type: 'alert', message: 'Notes saved!' });
+            await updateDoc(userRef, updates);
+            setModal({ isOpen: true, type: 'alert', message: 'User updated successfully!' });
+            setUserEdits(prev => {
+                const newEdits = { ...prev };
+                delete newEdits[userId];
+                return newEdits;
+            });
         } catch (error) {
-            console.error("Error saving user notes:", error);
-            setModal({ isOpen: true, type: 'alert', message: 'Failed to save notes.' });
+            console.error("Error updating user:", error);
+            setModal({ isOpen: true, type: 'alert', message: 'Failed to update user.' });
         }
+    };
+    
+    const handleDeleteUser = (userId, userName) => {
+        setModal({
+            isOpen: true,
+            type: 'confirm',
+            title: 'Delete User?',
+            message: `Are you sure you want to permanently delete ${userName} (ID: ${userId})? This action cannot be undone.`,
+            onConfirm: async () => {
+                const userRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, userId);
+                try {
+                    await deleteDoc(userRef);
+                    setModal({ isOpen: true, type: 'success', title: 'User Deleted', message: `${userName} has been successfully deleted.` });
+                } catch (error) {
+                    console.error("Error deleting user:", error);
+                    setModal({ isOpen: true, type: 'alert', message: 'Could not delete user.' });
+                }
+            }
+        });
     };
 
     return (
         <div className="min-h-screen bg-gray-950 text-gray-100 p-4 sm:p-8">
             <div className="max-w-7xl mx-auto">
                 <header className="flex justify-between items-center mb-8">
-                    <h1 className="text-2xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-amber-500">Admin Panel</h1>
+                    <h1 className="text-2xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-red-500">Admin Panel</h1>
                     <button onClick={() => setView('landing')} className="px-4 py-2 bg-gray-700 text-white font-bold rounded-lg hover:bg-gray-600 transition-colors">
                         &larr; Back to App
                     </button>
                 </header>
                 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* User Management Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-1 gap-8">
                     <div className="bg-gray-900/50 border border-gray-700 rounded-xl p-6 lg:col-span-3">
-                        <h2 className="text-2xl font-bold text-teal-400 mb-4">User Accounts ({users.length})</h2>
+                        <h2 className="text-2xl font-bold text-cyan-300 mb-4">User Accounts ({users.length})</h2>
                         {isLoadingUsers ? <p>Loading users...</p> : (
                             <div className="overflow-auto max-h-[600px]">
                                 <table className="min-w-full text-sm">
-                                    <thead className="sticky top-0 bg-gray-900/80 backdrop-blur-sm">
+                                    <thead className="sticky top-0 bg-gray-900 backdrop-blur-sm">
                                         <tr className="border-b border-gray-700 text-left text-xs uppercase text-gray-400">
-                                            <th className="p-3">Access Code</th>
-                                            <th className="p-3">Plan</th>
-                                            <th className="p-3">Expiry</th>
-                                            <th className="p-3">Status</th>
-                                            <th className="p-3">Tag</th>
-                                            <th className="p-3">Notes</th>
+                                            <th className="p-2">User Info</th>
+                                            <th className="p-2">Status</th>
+                                            <th className="p-2">Plan</th>
+                                            <th className="p-2">Expiry</th>
+                                            <th className="p-2">Tag</th>
+                                            <th className="p-2">Notes</th>
+                                            <th className="p-2">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {users.map(user => {
-                                            const isExpired = new Date().getTime() > user.userInfo.expiryDate;
+                                        {sortedUsers.map(user => {
+                                            const userEditData = userEdits[user.id] || {};
                                             return (
-                                                <tr key={user.id} className="border-b border-gray-800">
-                                                    <td className="p-3 font-mono text-teal-300">{user.id}</td>
-                                                    <td className="p-3 capitalize">{user.userInfo.plan}</td>
-                                                    <td className="p-3">{new Date(user.userInfo.expiryDate).toLocaleDateString()}</td>
-                                                    <td className="p-3">
-                                                        <span className={`px-2 py-1 text-xs font-bold rounded-full ${!isExpired ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                                                            {!isExpired ? 'Active' : 'Expired'}
+                                                <tr key={user.id} className={`border-b border-gray-800 ${!user.userInfo?.isVerified ? 'bg-amber-900/20' : ''}`}>
+                                                    <td className="p-2 font-mono text-cyan-300">
+                                                        {user.id}
+                                                        <br/>
+                                                        <span className="text-xs text-gray-400 font-sans">{user.userInfo?.name || 'No Name'}</span>
+                                                        <br/>
+                                                        <span className="text-xs text-gray-500 font-sans">{user.userInfo?.mobile || 'No Mobile'}</span>
+                                                    </td>
+                                                    <td className="p-2">
+                                                        <span className={`px-2 py-1 text-xs font-bold rounded-full ${user.userInfo?.isVerified ? 'bg-green-500/20 text-green-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                                                            {user.userInfo?.isVerified ? 'Verified' : 'Pending'}
                                                         </span>
                                                     </td>
-                                                    <td className="p-3">
-                                                        <select
-                                                            value={user.userInfo.tag || ''}
-                                                            onChange={(e) => handleUserTagChange(user.id, e.target.value)}
-                                                            className="w-full p-1 bg-gray-800 border border-gray-600 rounded"
-                                                        >
-                                                            <option value="">- Select -</option>
-                                                            {USER_TAGS.map(tag => <option key={tag} value={tag}>{tag}</option>)}
-                                                        </select>
-                                                    </td>
-                                                    <td className="p-3">
-                                                        <div className="flex items-center gap-2">
-                                                            <textarea
-                                                                value={userNotes[user.id] || ''}
-                                                                onChange={(e) => handleUserNotesChange(user.id, e.target.value)}
-                                                                className="w-full p-1 bg-gray-800 border border-gray-600 rounded text-xs"
-                                                                rows="2"
-                                                            />
-                                                            <button onClick={() => saveUserNotes(user.id)} className="p-1 text-xs bg-teal-600 rounded hover:bg-teal-700">Save</button>
-                                                        </div>
+                                                    <td className="p-2"><select value={userEditData.plan ?? user.userInfo?.plan} onChange={(e) => handleUserEditChange(user.id, 'plan', e.target.value)} className="w-full p-1 bg-gray-800 border border-gray-600 rounded"><option value="none">None</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select></td>
+                                                    <td className="p-2"><input type="date" value={userEditData.expiryDate ?? new Date(user.userInfo?.expiryDate || Date.now()).toISOString().split('T')[0]} onChange={(e) => handleUserEditChange(user.id, 'expiryDate', e.target.value)} className="w-full p-1 bg-gray-800 border border-gray-600 rounded"/></td>
+                                                    <td className="p-2"><select value={userEditData.tag ?? user.userInfo?.tag} onChange={(e) => handleUserEditChange(user.id, 'tag', e.target.value)} className="w-full p-1 bg-gray-800 border border-gray-600 rounded"><option value="">- Select -</option>{USER_TAGS.map(tag => <option key={tag} value={tag}>{tag}</option>)}</select></td>
+                                                    <td className="p-2"><textarea value={userEditData.notes ?? user.userInfo?.notes} onChange={(e) => handleUserEditChange(user.id, 'notes', e.target.value)} className="w-full p-1 bg-gray-800 border border-gray-600 rounded text-xs" rows="2" /></td>
+                                                    <td className="p-2 space-y-1 flex flex-col">
+                                                        {!user.userInfo?.isVerified && <button onClick={() => handleVerifyUser(user.id)} className="p-2 text-xs bg-green-600 rounded hover:bg-green-500 w-full">Verify & Activate</button>}
+                                                        <button onClick={() => handleSaveUserChanges(user.id)} className="p-2 text-xs bg-blue-600 rounded hover:bg-blue-500 w-full" disabled={!userEdits[user.id]}>Save</button>
+                                                        <button onClick={() => handleDeleteUser(user.id, user.userInfo?.name)} className="p-2 text-xs bg-red-700 rounded hover:bg-red-600 w-full">Delete</button>
                                                     </td>
                                                 </tr>
                                             );
@@ -1816,110 +1901,20 @@ const AdminPanel = ({ db, setView, setModal }) => {
                             </div>
                         )}
                     </div>
-                    
-                    {/* Coupon Management Section */}
-                    <div className="lg:col-span-3">
-                        <div className="bg-gray-900/50 border border-gray-700 rounded-xl p-6 mb-8">
-                            <h2 className="text-2xl font-bold text-teal-400 mb-4">Add New Coupon</h2>
-                            <form onSubmit={handleAddCoupon} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                                <div className="md:col-span-1">
-                                    <label className="block text-sm font-medium text-gray-400 mb-1">Coupon Code</label>
-                                    <input type="text" name="code" value={newCoupon.code} onChange={handleInputChange} className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg" required />
-                                </div>
-                                 <div className="md:col-span-1">
-                                    <label className="block text-sm font-medium text-gray-400 mb-1">Discount (%)</label>
-                                    <input type="number" name="discountPercentage" value={newCoupon.discountPercentage} onChange={handleInputChange} className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg" required min="1" max="100"/>
-                                </div>
-                                <div className="flex items-center justify-center h-full pb-2">
-                                     <label className="flex items-center gap-2 text-gray-300">
-                                        <input type="checkbox" name="isActive" checked={newCoupon.isActive} onChange={handleInputChange} className="h-5 w-5 rounded bg-gray-700 border-gray-600 text-teal-500 focus:ring-teal-500" />
-                                        Active
-                                    </label>
-                                </div>
-                                <button type="submit" className="w-full p-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">Add Coupon</button>
-                            </form>
-                        </div>
-
-                        <div className="bg-gray-900/50 border border-gray-700 rounded-xl p-6">
-                             <h2 className="text-2xl font-bold text-teal-400 mb-4">Manage Coupons ({coupons.length})</h2>
-                             {isLoadingCoupons ? <p>Loading coupons...</p> : (
-                                 <div className="overflow-x-auto max-h-[400px]">
-                                     <table className="min-w-full">
-                                         <thead className="sticky top-0 bg-gray-900/80 backdrop-blur-sm">
-                                             <tr className="border-b border-gray-700 text-left text-sm uppercase text-gray-400">
-                                                 <th className="p-3">Code</th>
-                                                 <th className="p-3">Discount</th>
-                                                 <th className="p-3">Status</th>
-                                                 <th className="p-3 text-right">Actions</th>
-                                             </tr>
-                                         </thead>
-                                         <tbody>
-                                             {coupons.map(coupon => (
-                                                 <tr key={coupon.id} className="border-b border-gray-800">
-                                                     <td className="p-3 font-mono text-teal-300">{coupon.id}</td>
-                                                     <td className="p-3">{coupon.discountPercentage}%</td>
-                                                     <td className="p-3">
-                                                         <span className={`px-2 py-1 text-xs font-bold rounded-full ${coupon.isActive ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>
-                                                             {coupon.isActive ? 'Active' : 'Inactive'}
-                                                         </span>
-                                                     </td>
-                                                     <td className="p-3 text-right space-x-2">
-                                                         <button onClick={() => toggleCouponStatus(coupon)} className="px-3 py-1 text-xs font-semibold rounded-md bg-blue-600/20 text-blue-400 hover:bg-blue-500 hover:text-white transition-colors">Toggle</button>
-                                                         <button onClick={() => handleDeleteCoupon(coupon.id)} className="px-3 py-1 text-xs font-semibold rounded-md bg-red-600/20 text-red-400 hover:bg-red-500 hover:text-white transition-colors">Delete</button>
-                                                     </td>
-                                                 </tr>
-                                             ))}
-                                         </tbody>
-                                     </table>
-                                 </div>
-                             )}
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
     );
 };
-
-const PaymentSuccessScreen = ({ details, setView }) => {
-    return (
-        <div className="min-h-screen bg-gray-950 flex flex-col justify-center items-center p-4 text-gray-100 font-sans">
-            <div className="absolute inset-0 -z-10 h-full w-full bg-gray-950 bg-[radial-gradient(#14b8a6_1px,transparent_1px)] [background-size:16px_16px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)]"></div>
-            <div className="w-full max-w-lg text-center bg-gray-900/50 backdrop-blur-sm border border-teal-600 rounded-2xl shadow-2xl p-8 md:p-12">
-                <div className="mx-auto mb-6 h-16 w-16 flex items-center justify-center rounded-full bg-green-500/20">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                </div>
-                <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-300 to-emerald-500">Payment Successful!</h1>
-                <p className="text-gray-300 mt-4 text-lg">Your account is now active. Welcome aboard!</p>
-                <div className="my-8 p-4 bg-gray-800 border border-dashed border-gray-600 rounded-lg">
-                    <p className="text-gray-400 text-sm mb-2">Your Secure Access Code is:</p>
-                    <p className="text-3xl font-bold font-mono tracking-widest text-teal-300">{details.accessCode}</p>
-                    <p className="text-xs text-amber-400 mt-3">Please save this code. You will need it to log in.</p>
-                    {details.paymentAttemptId && (
-                        <p className="text-xs text-gray-400 mt-4">Payment Reference: {details.paymentAttemptId}</p>
-                    )}
-                </div>
-                <button onClick={() => setView('login')} className="w-full p-4 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-all transform hover:scale-105">
-                    Proceed to Login
-                </button>
-            </div>
-        </div>
-    );
-};
-
 
 // --- MAIN APP COMPONENT ---
 const App = () => {
-    const [view, setView] = useState('landing'); // landing, login, userDetails, register, plans, dashboard, admin, admin-login, paymentSuccess
+    const [view, setView] = useState('landing'); // landing, login, userDetails, register, plans, dashboard, admin, admin-login
     const [viewHistory, setViewHistory] = useState([]);
     const [registrationDetails, setRegistrationDetails] = useState(null);
-    const [paymentSuccessDetails, setPaymentSuccessDetails] = useState(null);
     const [allData, setAllData] = useState(null);
     const [loggedInCode, setLoggedInCode] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [isProcessingPayment, setIsProcessingPayment] = useState(false);
     const [modal, setModal] = useState({ isOpen: false, type: 'alert', message: '', onConfirm: null, defaultValues: null });
     const [notification, setNotification] = useState({ show: false, message: '' });
     const [db, setDb] = useState(null);
@@ -1927,7 +1922,6 @@ const App = () => {
     const [isRenewalFlow, setIsRenewalFlow] = useState(false);
     const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
     const [isAuthLoading, setIsAuthLoading] = useState(false);
-    const [paymentAttemptId, setPaymentAttemptId] = useState(null);
 
     // Function to change view and manage history for back button
     const navigateTo = (newView) => {
@@ -1984,7 +1978,6 @@ const App = () => {
             script.async = true;
             document.body.appendChild(script);
         };
-        loadScript('https://checkout.razorpay.com/v1/checkout.js', 'razorpay-checkout-js');
         loadScript('https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js', 'tone-js-script');
         loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', 'html2canvas-js');
     }, []);
@@ -1997,9 +1990,9 @@ const App = () => {
                 const savedCode = localStorage.getItem(SESSION_KEY);
                 if (savedCode) {
                     setLoggedInCode(savedCode);
-                    navigateTo('dashboard');
+                    // Don't auto-navigate here, handleLogin will do it after verification checks
                 } else {
-                    setView('landing');
+                     setView('landing');
                 }
             } else {
                 setLoggedInCode(null);
@@ -2018,7 +2011,7 @@ const App = () => {
             const sampleJournal = { id: 'sample_journal_1', name: 'Test Strategy', initialCapital: sampleInitialCapital, createdAt: new Date().toISOString() };
             const sampleTrades = generateSampleTrades(125, sampleInitialCapital);
             const testUserData = {
-                userInfo: { name: 'Test User (Expired)', plan: 'expired', expiryDate: new Date().getTime() - 1000, paymentHistory: [] },
+                userInfo: { name: 'Test User (Expired)', plan: 'expired', expiryDate: new Date().getTime() - 1000, isVerified: true, paymentHistory: [] },
                 journals: [sampleJournal],
                 trades: { 'sample_journal_1': sampleTrades }
             };
@@ -2032,7 +2025,7 @@ const App = () => {
             const sampleJournal = { id: 'sample_journal_2', name: 'Working Test Strategy', initialCapital: sampleInitialCapital, createdAt: new Date().toISOString() };
             const sampleTrades = generateSampleTrades(150, sampleInitialCapital);
             const testUserData = {
-                userInfo: { name: 'Test User (Active)', plan: 'yearly', expiryDate: new Date().getTime() + 365 * 24 * 60 * 60 * 1000, paymentHistory: [{ paymentId: 'pay_sample', plan: 'yearly', amount: 49900, date: new Date().toISOString() }] },
+                userInfo: { name: 'Test User (Active)', plan: 'yearly', expiryDate: new Date().getTime() + 365 * 24 * 60 * 60 * 1000, isVerified: true, paymentHistory: [{ paymentId: 'pay_sample', plan: 'yearly', amount: 49900, date: new Date().toISOString() }] },
                 journals: [sampleJournal],
                 trades: { 'sample_journal_2': sampleTrades }
             };
@@ -2051,8 +2044,10 @@ const App = () => {
             if (docSnap.exists()) {
                 setAllData(docSnap.data());
             } else {
-                setModal({isOpen: true, type: 'alert', message: 'Invalid Access Code.'});
-                handleLogout();
+                if (loggedInCode) { // Only show error if we were expecting a user
+                    setModal({isOpen: true, type: 'alert', message: 'Invalid Access Code.'});
+                    handleLogout();
+                }
             }
              setIsLoading(false);
         }, (error) => {
@@ -2089,7 +2084,7 @@ const App = () => {
         }
 
         if (!db) {
-            setModal({ isOpen: true, type: 'alert', message: 'Database connection not available. Please refresh and try again.' });
+            setModal({ isOpen: true, type: 'alert', message: 'Database connection not available.' });
             return;
         }
         const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, code);
@@ -2098,9 +2093,22 @@ const App = () => {
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 if (data.userInfo.password === password) {
-                    localStorage.setItem(SESSION_KEY, code);
-                    setLoggedInCode(code);
-                    navigateTo('dashboard');
+                    if (data.userInfo.isVerified) {
+                        localStorage.setItem(SESSION_KEY, code);
+                        setLoggedInCode(code);
+                        navigateTo('dashboard');
+                    } else {
+                        setRegistrationDetails(data.userInfo); // Pass user info to plans page
+                        setModal({ 
+                            isOpen: true, 
+                            type: 'alert', 
+                            message: 'Your account is pending verification. Please complete your payment to activate your account.',
+                            onConfirm: () => {
+                                navigateTo('plans');
+                                setModal({isOpen: false});
+                            }
+                        });
+                    }
                 } else {
                     setModal({ isOpen: true, type: 'alert', message: 'Invalid password.' });
                 }
@@ -2123,168 +2131,22 @@ const App = () => {
     };
     
     const showSuccessNotification = (message) => {
-        if (window.Tone) { try { const synth = new window.Tone.Synth().toDestination(); synth.triggerAttackRelease("C5", "8n"); } catch (e) { console.error("Could not play sound:", e); } }
+        if (window.Tone && typeof window.Tone.Synth === 'function') { 
+            try { 
+                const synth = new window.Tone.Synth().toDestination(); 
+                synth.triggerAttackRelease("C5", "8n"); 
+            } catch (e) { 
+                console.error("Could not play sound:", e); 
+            } 
+        }
         setNotification({ show: true, message });
         setTimeout(() => setNotification({ show: false, message: '' }), 3000);
     };
 
-    // --- [UPDATED] PAYMENT LOGIC ---
-    const handlePlanPayment = async (planType, amountInPaise) => {
-        if (!window.Razorpay) {
-            setModal({ isOpen: true, type: 'alert', message: 'Payment gateway is not ready. Please try again.' });
-            return;
-        }
-        
-        setIsProcessingPayment(true);
-        const attemptId = `PTJ-receipt-${Date.now()}`;
-        setPaymentAttemptId(attemptId);
-
-        try {
-            // Step 1: Ask your server to create an order
-            const orderResponse = await fetch('/api/create-razorpay-order', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount: amountInPaise }), // UPDATED: Simplified body as per request
-            });
-
-            if (!orderResponse.ok) {
-                const errorData = await orderResponse.json();
-                throw new Error(errorData.error || 'Failed to create payment order.');
-            }
-
-            const order = await orderResponse.json();
-
-            // Step 2: Open Razorpay Checkout
-            const options = {
-                key: RAZORPAY_KEY_ID,
-                amount: order.amount,
-                currency: order.currency,
-                name: "Pro Trader Journal",
-                description: isRenewalFlow ? `Renew ${planType} Plan` : `Activate ${planType} Plan`,
-                order_id: order.id,
-                handler: async (response) => {
-                    // Step 3: Verify the payment signature on your server
-                    const verifyRes = await fetch('/api/verify-razorpay-payment', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(response)
-                    });
-                    const verifyJson = await verifyRes.json();
-
-                    if (verifyJson?.ok) {
-                        // --- SERVER VERIFIED, NOW UPDATE DATABASE ---
-                         try {
-                            const newPaymentRecord = {
-                                paymentId: response.razorpay_payment_id,
-                                orderId: response.razorpay_order_id,
-                                signature: response.razorpay_signature,
-                                plan: planType,
-                                amount: amountInPaise,
-                                date: new Date().toISOString(),
-                                attemptId: attemptId,
-                            };
-
-                            if (isRenewalFlow) {
-                                const days = planType === 'monthly' ? 30 : 365;
-                                const newExpiryDate = new Date().getTime() + days * 24 * 60 * 60 * 1000;
-                                const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, loggedInCode);
-                                
-                                const docSnap = await getDoc(docRef);
-                                if (!docSnap.exists()) throw new Error('User not found for renewal.');
-                                
-                                const existingData = docSnap.data();
-                                const paymentHistory = existingData.userInfo.paymentHistory || [];
-                                
-                                await setDoc(docRef, { 
-                                    userInfo: { 
-                                        ...existingData.userInfo,
-                                        plan: planType,
-                                        expiryDate: newExpiryDate,
-                                        paymentHistory: [...paymentHistory, newPaymentRecord]
-                                    } 
-                                }, { merge: true });
-
-                                showSuccessNotification('Plan Renewed Successfully!');
-                                setIsRenewalFlow(false);
-                                setTimeout(() => navigateTo('dashboard'), 100);
-
-                            } else {
-                                const { name, email, mobile, accessCode, password } = registrationDetails;
-                                const days = planType === 'monthly' ? 30 : 365;
-                                const expiryDate = new Date().getTime() + days * 24 * 60 * 60 * 1000;
-                                const initialData = { 
-                                    userInfo: { 
-                                        name, email, mobile, password,
-                                        createdAt: new Date().toISOString(),
-                                        plan: planType,
-                                        expiryDate: expiryDate,
-                                        paymentHistory: [newPaymentRecord],
-                                        tag: 'New User',
-                                        notes: ''
-                                    }, 
-                                    journals: [], 
-                                    trades: {} 
-                                };
-                                const docRef = doc(db, 'artifacts', appId, 'public', 'data', DB_COLLECTION_NAME, accessCode);
-                                await setDoc(docRef, initialData);
-                                setPaymentSuccessDetails({ accessCode: accessCode, paymentAttemptId: attemptId });
-                                setTimeout(() => navigateTo('paymentSuccess'), 100);
-                            }
-                        } catch(error) {
-                            console.error("DATABASE UPDATE ERROR:", error);
-                            setModal({ isOpen: true, type: 'alert', message: `Payment was verified, but we couldn't update your account. Please contact support with Payment ID: ${response.razorpay_payment_id}` });
-                        }
-                    } else {
-                        setModal({ isOpen: true, type: 'alert', message: 'Payment verification failed. Please contact support if the amount was debited.' });
-                    }
-                },
-                prefill: {
-                    name: registrationDetails?.name || allData?.userInfo?.name || '',
-                    email: registrationDetails?.email || allData?.userInfo?.email || '',
-                    contact: registrationDetails?.mobile || allData?.userInfo?.mobile || ''
-                },
-                notes: {
-                    accessCode: isRenewalFlow ? loggedInCode : (registrationDetails ? registrationDetails.accessCode : 'N/A'),
-                    payment_attempt_id: attemptId
-                },
-                theme: {
-                    color: "#14b8a6"
-                },
-                modal: {
-                    ondismiss: () => {
-                        setModal({ isOpen: true, type: 'alert', message: `Payment window closed. Your transaction may not have been completed.` });
-                    }
-                }
-            };
-
-            const rzp = new window.Razorpay(options);
-            rzp.on('payment.failed', function (response){
-                console.error("Razorpay payment failed:", response.error);
-                setModal({isOpen: true, type: 'alert', message: `Payment failed: ${response.error.description}. Please try another payment method.`});
-            });
-            rzp.open();
-
-        } catch (error) {
-            console.error("Error during payment process:", error);
-            setModal({isOpen: true, type: 'alert', message: `Could not initiate payment: ${error.message}`});
-        } finally {
-            setIsProcessingPayment(false);
-            setPaymentAttemptId(null);
-        }
-    };
-
-
     const handleStartRenewal = () => {
         setIsRenewalFlow(true);
+        setRegistrationDetails(allData?.userInfo || {});
         navigateTo('plans');
-    };
-
-    const handleModalClose = () => {
-        if (modal.onConfirm && modal.type !== 'editTrade' && modal.type !== 'createJournal') {
-             modal.onConfirm();
-        } else {
-             setModal({ isOpen: false });
-        }
     };
 
     const handleAdminLogin = (password) => {
@@ -2304,12 +2166,11 @@ const App = () => {
         switch(view) {
             case 'landing': return <LandingPage setView={navigateTo} />;
             case 'userDetails': return <UserDetailsScreen setView={navigateTo} setRegistrationDetails={setRegistrationDetails} goBack={goBack} />;
-            case 'register': return <RegisterScreen setView={navigateTo} setRegistrationDetails={setRegistrationDetails} db={db} setModal={setModal} goBack={goBack} />;
-            case 'plans': return <PlansScreen onPlanSelect={handlePlanPayment} setModal={setModal} goBack={goBack} db={db} isProcessingPayment={isProcessingPayment} />;
+            case 'register': return <RegisterScreen setView={navigateTo} registrationDetails={registrationDetails} db={db} setModal={setModal} goBack={goBack} />;
+            case 'plans': return <PlansScreen registrationDetails={registrationDetails} setModal={setModal} goBack={goBack} db={db} />;
             case 'dashboard': return <Dashboard allData={allData} updateData={updateData} userId={loggedInCode} onLogout={handleLogout} modal={modal} setModal={setModal} db={db} setView={navigateTo} handleStartRenewal={handleStartRenewal} />;
             case 'admin-login': return <AdminLogin onAdminLogin={handleAdminLogin} isLoading={isAuthLoading} setView={navigateTo} setModal={setModal} />;
             case 'admin': return isAdminAuthenticated ? <AdminPanel db={db} setView={navigateTo} setModal={setModal} /> : <AdminLogin onAdminLogin={handleAdminLogin} isLoading={isAuthLoading} setView={navigateTo} setModal={setModal} />;
-            case 'paymentSuccess': return <PaymentSuccessScreen details={paymentSuccessDetails} setView={navigateTo} />;
             case 'login': default: return <LoginScreen onLogin={handleLogin} setModal={setModal} setView={navigateTo} db={db} />;
         }
     };
@@ -2321,6 +2182,21 @@ const App = () => {
 
     const renderModalContent = () => {
         switch (modal.type) {
+            case 'success':
+                return (
+                    <div className="text-center">
+                        <div className="mx-auto mb-4 h-16 w-16 flex items-center justify-center rounded-full bg-green-500/20">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                        <h3 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-300 to-emerald-500 mb-2">{modal.title || "Success!"}</h3>
+                        <p className="text-gray-300 mb-6">{modal.message}</p>
+                        <button onClick={modal.onConfirm} className="w-full p-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-all transform hover:scale-105">
+                            Proceed
+                        </button>
+                    </div>
+                );
             case 'createJournal':
                 return (<form onSubmit={modal.onConfirm}><h3 className="text-xl font-bold text-teal-400 mb-4">Create New Journal</h3><div className="space-y-4 text-left"><input type="text" name="name" placeholder="Journal Name" defaultValue={modal.defaultValues?.name} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /><input type="number" name="initialCapital" placeholder="Initial Capital (₹)" defaultValue={modal.defaultValues?.initialCapital} className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-white" required /></div><div className="flex justify-center gap-4 mt-6"><button type="submit" className="px-6 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600">Create</button><button type="button" onClick={() => setModal({isOpen: false})} className="px-6 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-gray-700">Cancel</button></div></form>);
             case 'editTrade':
@@ -2346,6 +2222,11 @@ const App = () => {
                 }
                 button, select, input, textarea {
                      transition: all 0.15s ease-in-out;
+                }
+                
+                button:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 15px -5px rgba(20, 184, 166, 0.4);
                 }
 
                 .animate-fade-in-out { animation: fadeInOut 3s forwards; }
@@ -2425,12 +2306,27 @@ const App = () => {
                     background-image: linear-gradient(to right, rgba(20, 184, 166, 0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(20, 184, 166, 0.1) 1px, transparent 1px);
                     background-size: 2rem 2rem;
                 }
+                
+                @keyframes fadeInScaleUp {
+                    from {
+                        opacity: 0;
+                        transform: scale(0.95) translateY(10px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: scale(1) translateY(0);
+                    }
+                }
+                .modal-content-animation {
+                    animation: fadeInScaleUp 0.3s ease-out forwards;
+                }
+
             `}</style>
             <div className="min-h-screen bg-gray-950">
                 <Notification show={notification.show} message={notification.message} />
                 {modal.isOpen && (
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-                        <div className="bg-gray-800 border border-teal-700 rounded-xl p-6 w-full max-w-md text-center shadow-2xl">
+                    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+                        <div className="modal-content-animation bg-gray-800 border border-teal-700/50 rounded-2xl p-6 w-full max-w-md text-center shadow-2xl shadow-teal-500/10">
                             {renderModalContent()}
                         </div>
                     </div>
