@@ -1310,18 +1310,226 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
     
     const handleShare = async () => {
         if (isPreview) { handlePreviewClick(); return; }
-        if (!window.html2canvas) {
-            setModal({ isOpen: true, type: 'alert', message: 'Sharing library not loaded. Please try again in a moment.' });
+        
+        // Check if the ref is available
+        if (!shareCardRef.current) {
+            setModal({ isOpen: true, type: 'alert', message: 'Share card element not found. Please try again.' });
             return;
         }
+        
         setIsLoading(true);
-        // Delay to allow modal to render with new data
-        await new Promise(resolve => setTimeout(resolve, 100));
+        
         try {
-            const canvas = await window.html2canvas(shareCardRef.current, {
-                backgroundColor: null,
-                useCORS: true
+            console.log('Starting custom canvas generation...');
+            console.log('Share data:', shareData);
+            console.log('Share data structure:', {
+                title: shareData?.title,
+                period: shareData?.period,
+                mainMetrics: shareData?.mainMetrics,
+                secondaryMetrics: shareData?.secondaryMetrics,
+                dailyBreakdown: shareData?.dailyBreakdown
             });
+            
+            // Validate share data
+            if (!shareData || !shareData.title || !shareData.period) {
+                throw new Error('Invalid share data. Please try again.');
+            }
+            
+            // Create canvas manually - this is more reliable than html2canvas
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas dimensions (2x for high quality)
+            const width = 960; // 480px * 2
+            const height = 800; // Approximate height * 2
+            canvas.width = width;
+            canvas.height = height;
+            
+            // Fill background
+            ctx.fillStyle = '#1f2937';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Add decorative background elements
+            ctx.fillStyle = 'rgba(20, 184, 166, 0.1)';
+            ctx.beginPath();
+            ctx.arc(width - 160, 160, 240, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            ctx.fillStyle = 'rgba(139, 92, 246, 0.1)';
+            ctx.beginPath();
+            ctx.arc(160, height - 160, 240, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Header - Left side
+            ctx.fillStyle = '#5eead4';
+            ctx.font = 'bold 60px system-ui';
+            ctx.textAlign = 'left';
+            ctx.fillText('Performance', 48, 100);
+            ctx.fillText('Snapshot', 48, 170);
+            
+            ctx.fillStyle = '#9ca3af';
+            ctx.font = '32px system-ui';
+            ctx.fillText(shareData.period, 48, 210);
+            
+            // Right side header
+            ctx.fillStyle = '#e5e7eb';
+            ctx.font = 'bold 28px system-ui';
+            ctx.textAlign = 'right';
+            ctx.fillText('PRO TRADER', width - 48, 100);
+            ctx.fillText('JOURNAL', width - 48, 130);
+            
+            ctx.fillStyle = '#5eead4';
+            ctx.font = '20px system-ui';
+            ctx.fillText('www.xponential.me', width - 48, 160);
+            
+            // Main metrics grid
+            const metricsY = 250;
+            const cardWidth = 400;
+            const cardHeight = 140;
+            const gap = 40;
+            
+            // First row - P&L and Capital
+            if (shareData.mainMetrics) {
+                // P&L Card
+                const pnlX = 48;
+                const isPnlProfit = shareData.mainMetrics.pnlValue >= 0;
+                ctx.fillStyle = isPnlProfit ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
+                ctx.fillRect(pnlX, metricsY, cardWidth, cardHeight);
+                ctx.strokeStyle = isPnlProfit ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(pnlX, metricsY, cardWidth, cardHeight);
+                
+                // P&L Label
+                ctx.fillStyle = '#9ca3af';
+                ctx.font = '24px system-ui';
+                ctx.textAlign = 'left';
+                ctx.fillText(shareData.mainMetrics.pnlLabel, pnlX + 24, metricsY + 35);
+                
+                // P&L Value
+                ctx.fillStyle = isPnlProfit ? '#34d399' : '#ef4444';
+                ctx.font = 'bold 44px system-ui';
+                ctx.fillText(formatCurrencyCompact(shareData.mainMetrics.pnlValue), pnlX + 24, metricsY + 75);
+                
+                // ROI if available
+                if (shareData.mainMetrics.roiValue !== undefined) {
+                    ctx.fillStyle = isPnlProfit ? '#34d399' : '#ef4444';
+                    ctx.font = 'bold 24px system-ui';
+                    ctx.fillText(`${formatPercentage(shareData.mainMetrics.roiValue)} ROI`, pnlX + 24, metricsY + 105);
+                }
+                
+                // Capital Card
+                const capitalX = pnlX + cardWidth + gap;
+                ctx.fillStyle = 'rgba(34, 211, 238, 0.1)';
+                ctx.fillRect(capitalX, metricsY, cardWidth, cardHeight);
+                ctx.strokeStyle = 'rgba(34, 211, 238, 0.3)';
+                ctx.strokeRect(capitalX, metricsY, cardWidth, cardHeight);
+                
+                // Capital Label
+                ctx.fillStyle = '#9ca3af';
+                ctx.font = '24px system-ui';
+                ctx.fillText(shareData.mainMetrics.capitalLabel, capitalX + 24, metricsY + 35);
+                
+                // Capital Value
+                ctx.fillStyle = '#22d3ee';
+                ctx.font = 'bold 44px system-ui';
+                ctx.fillText(formatCurrencyCompact(shareData.mainMetrics.capitalValue), capitalX + 24, metricsY + 75);
+            }
+            
+            // Second row - Secondary metrics if available
+            if (shareData.secondaryMetrics) {
+                const secondaryY = metricsY + cardHeight + gap;
+                
+                // Secondary P&L Card
+                const secPnlX = 48;
+                const isSecPnlProfit = shareData.secondaryMetrics.pnlValue >= 0;
+                ctx.fillStyle = isSecPnlProfit ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
+                ctx.fillRect(secPnlX, secondaryY, cardWidth, cardHeight);
+                ctx.strokeStyle = isSecPnlProfit ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)';
+                ctx.strokeRect(secPnlX, secondaryY, cardWidth, cardHeight);
+                
+                // Secondary P&L Label
+                ctx.fillStyle = '#9ca3af';
+                ctx.font = '24px system-ui';
+                ctx.fillText(shareData.secondaryMetrics.pnlLabel, secPnlX + 24, secondaryY + 35);
+                
+                // Secondary P&L Value
+                ctx.fillStyle = isSecPnlProfit ? '#34d399' : '#ef4444';
+                ctx.font = 'bold 44px system-ui';
+                ctx.fillText(formatCurrencyCompact(shareData.secondaryMetrics.pnlValue), secPnlX + 24, secondaryY + 75);
+                
+                // Secondary ROI if available
+                if (shareData.secondaryMetrics.roiValue !== undefined) {
+                    ctx.fillStyle = isSecPnlProfit ? '#34d399' : '#ef4444';
+                    ctx.font = 'bold 24px system-ui';
+                    ctx.fillText(`${formatPercentage(shareData.secondaryMetrics.roiValue)} ROI`, secPnlX + 24, secondaryY + 105);
+                }
+                
+                // Secondary Capital Card
+                const secCapitalX = secPnlX + cardWidth + gap;
+                ctx.fillStyle = 'rgba(34, 211, 238, 0.1)';
+                ctx.fillRect(secCapitalX, secondaryY, cardWidth, cardHeight);
+                ctx.strokeStyle = 'rgba(34, 211, 238, 0.3)';
+                ctx.strokeRect(secCapitalX, secondaryY, cardWidth, cardHeight);
+                
+                // Secondary Capital Label
+                ctx.fillStyle = '#9ca3af';
+                ctx.font = '24px system-ui';
+                ctx.fillText(shareData.secondaryMetrics.capitalLabel, secCapitalX + 24, secondaryY + 35);
+                
+                // Secondary Capital Value
+                ctx.fillStyle = '#22d3ee';
+                ctx.font = 'bold 44px system-ui';
+                ctx.fillText(formatCurrencyCompact(shareData.secondaryMetrics.capitalValue), secCapitalX + 24, secondaryY + 75);
+            }
+            
+            // Daily breakdown if available
+            if (shareData.dailyBreakdown && shareData.dailyBreakdown.length > 0) {
+                const breakdownY = (shareData.secondaryMetrics ? metricsY + cardHeight * 2 + gap * 2 : metricsY + cardHeight + gap) + 60;
+                
+                // Section title
+                ctx.fillStyle = '#5eead4';
+                ctx.font = 'bold 32px system-ui';
+                ctx.textAlign = 'center';
+                ctx.fillText('Daily Breakdown', width / 2, breakdownY);
+                
+                // Daily entries
+                const entryHeight = 28;
+                const maxEntries = Math.min(6, shareData.dailyBreakdown.length);
+                const startX = 48;
+                const startY = breakdownY + 30;
+                
+                for (let i = 0; i < maxEntries; i++) {
+                    const day = shareData.dailyBreakdown[i];
+                    const entryY = startY + i * (entryHeight + 12);
+                    
+                    // Entry background
+                    ctx.fillStyle = 'rgba(31, 41, 55, 0.5)';
+                    ctx.fillRect(startX, entryY, width - 96, entryHeight);
+                    
+                    // Date
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '20px system-ui';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(new Date(day.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }), startX + 16, entryY + 20);
+                    
+                    // P&L value
+                    ctx.fillStyle = day.pnl >= 0 ? '#34d399' : '#ef4444';
+                    ctx.font = 'bold 20px monospace';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(formatCurrencyCompact(day.pnl), width - 64, entryY + 20);
+                }
+            }
+            
+            // Footer
+            const footerY = height - 80;
+            ctx.fillStyle = '#6b7280';
+            ctx.font = '20px system-ui';
+            ctx.textAlign = 'center';
+            ctx.fillText('Track your journey to profitability. Generated by Pro Trader Journal.', width / 2, footerY);
+            
+            console.log('Custom canvas generated successfully');
+            
+            // Download the image
             const imageUrl = canvas.toDataURL('image/png');
             const link = document.createElement('a');
             link.href = imageUrl;
@@ -1329,10 +1537,17 @@ const Dashboard = ({ allData, updateData, userId, onLogout, modal, setModal, db,
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            
+            console.log('Image download initiated');
 
         } catch (error) {
             console.error("Error generating share image:", error);
-            setModal({ isOpen: true, type: 'alert', message: 'Could not generate shareable image.' });
+            console.error("Error details:", {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            });
+            setModal({ isOpen: true, type: 'alert', message: 'Could not generate shareable image. Error: ' + error.message });
         } finally {
             setIsLoading(false);
             setShareData(null); // Close modal
